@@ -1,0 +1,189 @@
+use async_trait::async_trait;
+use hex_literal::hex;
+use primitive_types::H160;
+use serde::{Deserialize, Serialize};
+
+use crate::atipicial_types::{
+	deserialize_script_hash, serialize_script_hash, ContractParameter, ScriptHash,
+};
+use crate::{
+	builder::{AccountSigner, TransactionBuilder},
+	atipicial_clients::{JsonRpcProvider, RpcClient},
+	atipicial_contract::{ContractError, SmartContractTrait},
+	atipicial_protocol::Account,
+};
+
+/// AtipicialCompound contract interface for Atipicial
+///
+/// AtipicialCompound is an automated interest compounding service for Atipicial ecosystem tokens.
+/// This contract interface provides methods to interact with the AtipicialCompound smart contract.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtipicialCompoundContract<'a, P: JsonRpcProvider> {
+	#[serde(deserialize_with = "deserialize_script_hash")]
+	#[serde(serialize_with = "serialize_script_hash")]
+	script_hash: ScriptHash,
+	#[serde(skip)]
+	provider: Option<&'a RpcClient<P>>,
+}
+
+impl<'a, P: JsonRpcProvider + 'static> AtipicialCompoundContract<'a, P> {
+	/// The script hash of the AtipicialCompound contract on Atipicial MainNet
+	pub const CONTRACT_HASH: &'static str = "f0151f528127558851b39c2cd8aa47da7418ab28";
+
+	// Method constants
+	/// Method name for depositing tokens
+	pub const DEPOSIT: &'static str = "deposit";
+	/// Method name for withdrawing tokens
+	pub const WITHDRAW: &'static str = "withdraw";
+	/// Method name for compounding interest
+	pub const COMPOUND: &'static str = "compound";
+	/// Method name for getting the APY
+	pub const GET_APY: &'static str = "getAPY";
+
+	/// Creates a new AtipicialCompoundContract instance with the default contract hash
+	///
+	/// # Arguments
+	///
+	/// * `provider` - An optional reference to an RPC client
+	///
+	/// # Returns
+	///
+	/// A new AtipicialCompoundContract instance
+	pub fn new(provider: Option<&'a RpcClient<P>>) -> Self {
+		Self {
+			script_hash: ScriptHash::from(hex!("f0151f528127558851b39c2cd8aa47da7418ab28")),
+			provider,
+		}
+	}
+
+	/// Creates a new AtipicialCompoundContract instance with a custom script hash
+	///
+	/// # Arguments
+	///
+	/// * `script_hash` - The script hash of the AtipicialCompound contract
+	/// * `provider` - An optional reference to an RPC client
+	///
+	/// # Returns
+	///
+	/// A new AtipicialCompoundContract instance
+	pub fn with_script_hash(script_hash: ScriptHash, provider: Option<&'a RpcClient<P>>) -> Self {
+		Self { script_hash, provider }
+	}
+
+	/// Deposits tokens into AtipicialCompound
+	///
+	/// # Arguments
+	///
+	/// * `token` - The script hash of the token to deposit
+	/// * `amount` - The amount of tokens to deposit
+	/// * `account` - The account that will sign the transaction
+	///
+	/// # Returns
+	///
+	/// A transaction builder that can be used to build and sign the transaction
+	pub async fn deposit(
+		&self,
+		token: &ScriptHash,
+		amount: i64,
+		account: &Account,
+	) -> Result<TransactionBuilder<'_, P>, ContractError> {
+		let params = vec![token.into(), ContractParameter::integer(amount)];
+
+		let mut builder = self.invoke_function(Self::DEPOSIT, params).await?;
+		let signer = AccountSigner::called_by_entry(account)
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+		builder
+			.set_signers(vec![signer.into()])
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+
+		Ok(builder)
+	}
+
+	/// Withdraws tokens from AtipicialCompound
+	///
+	/// # Arguments
+	///
+	/// * `token` - The script hash of the token to withdraw
+	/// * `amount` - The amount of tokens to withdraw
+	/// * `account` - The account that will sign the transaction
+	///
+	/// # Returns
+	///
+	/// A transaction builder that can be used to build and sign the transaction
+	pub async fn withdraw(
+		&self,
+		token: &ScriptHash,
+		amount: i64,
+		account: &Account,
+	) -> Result<TransactionBuilder<'_, P>, ContractError> {
+		let params = vec![token.into(), ContractParameter::integer(amount)];
+
+		let mut builder = self.invoke_function(Self::WITHDRAW, params).await?;
+		let signer = AccountSigner::called_by_entry(account)
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+		builder
+			.set_signers(vec![signer.into()])
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+
+		Ok(builder)
+	}
+
+	/// Compounds interest for a specific token
+	///
+	/// # Arguments
+	///
+	/// * `token` - The script hash of the token to compound interest for
+	/// * `account` - The account that will sign the transaction
+	///
+	/// # Returns
+	///
+	/// A transaction builder that can be used to build and sign the transaction
+	pub async fn compound(
+		&self,
+		token: &ScriptHash,
+		account: &Account,
+	) -> Result<TransactionBuilder<'_, P>, ContractError> {
+		let params = vec![token.into()];
+
+		let mut builder = self.invoke_function(Self::COMPOUND, params).await?;
+		let signer = AccountSigner::called_by_entry(account)
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+		builder
+			.set_signers(vec![signer.into()])
+			.map_err(|err| ContractError::RuntimeError(err.to_string()))?;
+
+		Ok(builder)
+	}
+
+	/// Gets the current APY for a specific token
+	///
+	/// # Arguments
+	///
+	/// * `token` - The script hash of the token to get the APY for
+	///
+	/// # Returns
+	///
+	/// The APY as a floating-point percentage
+	pub async fn get_apy(&self, token: &ScriptHash) -> Result<f64, ContractError> {
+		let result = self.call_function_returning_int(Self::GET_APY, vec![token.into()]).await?;
+		// Convert the integer result to a floating-point percentage (assuming APY is stored as an integer with a fixed decimal point)
+		Ok(result as f64 / 100.0) // Assuming 2 decimal places for percentage
+	}
+}
+
+#[async_trait]
+impl<'a, P: JsonRpcProvider> SmartContractTrait<'a> for AtipicialCompoundContract<'a, P> {
+	type P = P;
+
+	fn script_hash(&self) -> H160 {
+		self.script_hash
+	}
+
+	fn set_script_hash(&mut self, script_hash: H160) {
+		self.script_hash = script_hash;
+	}
+
+	fn provider(&self) -> Option<&RpcClient<P>> {
+		self.provider
+	}
+}

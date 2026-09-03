@@ -1,0 +1,10 @@
+[package]
+name = "message_signing_example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+atipicial = { path = "../.." }
+tokio = { version = "1.50", features = ["full"] }
+hex = "0.4"

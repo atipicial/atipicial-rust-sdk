@@ -1,0 +1,54 @@
+<svg width="760" height="360" viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">AtipicialRust SDK</title>
+  <desc id="desc">A modern, minimal logo for the AtipicialRust SDK with a Atipicial-green core and Rust-inspired gear ring.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop stop-color="#081323" offset="0%"/>
+      <stop stop-color="#0d1e32" offset="50%"/>
+      <stop stop-color="#0a1526" offset="100%"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop stop-color="#1fe27c" offset="0%"/>
+      <stop stop-color="#11b86c" offset="100%"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop stop-color="#3ef7b3" offset="0%"/>
+      <stop stop-color="#12c676" offset="100%"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop stop-color="#1a9e5b" offset="0%"/>
+      <stop stop-color="#0f7c4a" offset="100%"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="760" height="360" rx="28" fill="url(#bg)"/>
+
+  <!-- Gear ring with dashed teeth -->
+  <g transform="translate(90 60)">
+    <circle cx="140" cy="120" r="112" fill="none" stroke="url(#ring)" stroke-width="18" stroke-dasharray="18 12" stroke-linecap="round" opacity="0.9"/>
+    <circle cx="140" cy="120" r="78" fill="#0b1f2f" stroke="#143c2a" stroke-width="8"/>
+
+    <!-- Block and rust motif -->
+    <g transform="translate(70 52)">
+      <polygon points="70,0 140,38 140,118 70,156 0,118 0,38" fill="url(#core)" opacity="0.9"/>
+      <polygon points="70,78 140,38 140,118 70,156" fill="#0e7842" opacity="0.94"/>
+      <polygon points="70,78 0,38 0,118 70,156" fill="#095d31" opacity="0.9"/>
+      <circle cx="70" cy="78" r="20" fill="#0b1f2f" stroke="#3ef7b3" stroke-width="6"/>
+    </g>
+
+    <!-- NR monogram -->
+    <g transform="translate(90 86)">
+      <path d="M0 72 V0 H20 L64 46 V0 H84 V72 H64 L20 26 V72 Z" fill="#e9f3ed"/>
+      <rect x="102" y="0" width="16" height="72" fill="#e9f3ed"/>
+      <path d="M120 0 H166 c16 0 29 10 29 26 c0 9-4 16-10 20 L210 72 H188 L172 54 H140 V72 H120 Z M140 14 V36 H166 c7 0 12-4 12-10 c0-6-5-12-12-12 Z" fill="#e9f3ed"/>
+    </g>
+  </g>
+
+  <!-- Caption -->
+  <text x="360" y="150" font-family="Inter, 'Segoe UI', 'Manrope', system-ui, -apple-system, sans-serif" font-size="36" font-weight="800" fill="#e7f3ee">
+    AtipicialRust SDK
+  </text>
+  <text x="360" y="190" font-family="Inter, 'Segoe UI', 'Manrope', system-ui, -apple-system, sans-serif" font-size="20" font-weight="500" fill="#9fc6b8">
+    Native Rust tooling for Atipicial · fast, safe, production ready
+  </text>
+</svg>

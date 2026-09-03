@@ -1,0 +1,155 @@
+name: Build & Test
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  msrv:
+    name: Minimum Supported Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust 1.91.0
+      id: msrv
+      uses: dtolnay/rust-toolchain@1.91.0
+    - name: Check library with MSRV
+      run: cargo +${{ steps.msrv.outputs.name }} check -p atipicial --lib --locked --all-features
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-lint-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-lint-
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    - name: Run clippy
+      run: cargo clippy --all-targets --no-default-features -- -D warnings
+
+  build-test:
+    name: Build & Test - ${{ matrix.os }}
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+    - name: Build
+      run: cargo build --no-default-features
+    - name: Run tests
+      run: cargo test --lib
+
+  docs:
+    name: Documentation
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-doc-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-doc-
+    - name: Build documentation
+      run: cargo doc --no-deps --no-default-features
+
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - uses: rustsec/audit-check@v2.0.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  supply-chain:
+    name: Supply Chain (cargo-deny)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v4
+    - uses: EmbarkStudios/cargo-deny-action@v2
+
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: build-test
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cov-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cov-
+    - name: Generate coverage
+      run: |
+        cargo install cargo-llvm-cov --locked || true
+        cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info || true
+    - name: Upload to Codecov
+      if: success()
+      uses: codecov/codecov-action@v5
+      with:
+        files: lcov.info
+        fail_ci_if_error: false
+        verbose: false

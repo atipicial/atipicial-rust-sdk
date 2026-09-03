@@ -1,0 +1,22 @@
+[package]
+name = "atipicial_x_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+publish = false
+
+[dependencies]
+atipicial = { path = "../..", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+
+[[example]]
+name = "atipicial_x_bridge"
+path = "examples/atipicial_x_bridge.rs"
+
+[[example]]
+name = "atipicial_x_evm"
+path = "examples/atipicial_x_evm.rs"
+
+[[example]]
+name = "unified_ecosystem"
+path = "examples/unified_ecosystem.rs"

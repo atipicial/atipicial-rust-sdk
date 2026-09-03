@@ -1,0 +1,28 @@
+[package]
+name = "basic-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Basic Atipicial examples for beginners"
+
+[dependencies]
+atipicial = { path = "../../", features = ["default"] }
+tokio = { version = "1.50", features = ["full"] }
+colored = "3.1"
+hex = "0.4"
+
+[[example]]
+name = "01_connect_to_network"
+path = "01_connect_to_network.rs"
+
+[[example]]
+name = "02_create_wallet"
+path = "02_create_wallet.rs"
+
+[[example]]
+name = "03_check_balance"
+path = "03_check_balance.rs"
+
+[[example]]
+name = "04_send_transaction"
+path = "04_send_transaction.rs"

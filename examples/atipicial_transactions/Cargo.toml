@@ -1,0 +1,19 @@
+[package]
+name = "atipicial_transactions_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+publish = false
+
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+
+[[example]]
+name = "create_and_send_transaction"
+path = "examples/create_and_send_transaction.rs" 

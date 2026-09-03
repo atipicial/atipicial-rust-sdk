@@ -1,0 +1,60 @@
+[book]
+title = "AtipicialRust SDK Documentation"
+authors = ["R3E Network (c) 2020-2025"]
+description = "Documentation for the AtipicialRust SDK, a comprehensive Rust SDK for interacting with the Atipicial blockchain"
+src = "src"
+language = "en"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/r3e-network/atipicial-rust-sdk"
+edit-url-template = "https://github.com/r3e-network/atipicial-rust-sdk/edit/master/docs/{path}"
+additional-css = ["theme/custom.css"]
+mathjax-support = true
+copy-fonts = true
+no-section-label = false
+site-url = "/AtipicialRust/"
+
+[output.html.playground]
+editable = true
+line-numbers = true
+
+[rust]
+edition = "2021"
+
+[output.html.search]
+enable = true
+limit-results = 20
+teaser-word-count = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+
+[output.html.fold]
+enable = true
+level = 0
+
+# Preprocessors disabled for CI compatibility
+# [preprocessor.mermaid]
+# command = "mdbook-mermaid"
+# optional = true
+
+# [preprocessor.toc]
+# command = "mdbook-toc"
+# renderer = ["html"]
+# optional = true
+
+# [preprocessor.admonish]
+# command = "mdbook-admonish"
+# assets_version = "3.0.3" # do not edit: managed by `mdbook-admonish install`
+# optional = true
+
+[output.linkcheck]
+optional = true
+follow-web-links = false
+traverse-parent-directories = false
+exclude = [ "github\\.com", "https://github.com/r3e-network/atipicial-rust-sdk/blob/master/SGX_SETUP.md" ]

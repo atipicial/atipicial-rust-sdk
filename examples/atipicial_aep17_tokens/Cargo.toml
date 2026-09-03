@@ -1,0 +1,21 @@
+[package]
+name = "atipicial_aep17_tokens_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+publish = false
+
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+hex = "0.4"
+
+# Add examples based on the files in the examples directory
+[[example]]
+name = "aep17_token_operations"
+path = "examples/aep17_token_operations.rs" 

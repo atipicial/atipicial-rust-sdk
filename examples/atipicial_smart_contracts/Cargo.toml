@@ -1,0 +1,21 @@
+[package]
+name = "atipicial_smart_contracts_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+publish = false
+
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+hex = "0.4"
+
+# Add examples based on the files in the examples directory
+[[example]]
+name = "interact_with_contract"
+path = "examples/interact_with_contract.rs" 

@@ -1,0 +1,63 @@
+[package]
+name = "atipicial-cli"
+version = "3.0.0"
+edition = "2021"
+rust-version = "1.91"
+publish = false
+description = "Command-line interface for the AtipicialRust SDK"
+authors = ["R3E Network (c) 2020-2026"]
+license = "MIT"
+documentation = "https://docs.rs/atipicial-cli"
+repository = "https://github.com/r3e-network/atipicial-rust-sdk"
+homepage = "https://github.com/r3e-network/atipicial-rust-sdk"
+readme = "README.md"
+
+[[bin]]
+name = "atipicial-cli"
+path = "src/main.rs"
+
+[features]
+default = ["network", "fs", "storage", "files", "atipicialfs"]
+network = []
+fs = []
+storage = []
+files = []
+atipicialfs = []
+
+[dependencies]
+atipicial = { path = "..", version = "3.0.0", features = ["futures", "ledger", "ws"] }
+tokio = { version = "1.50", features = ["full"] }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9"
+colored = "3.1"
+comfy-table = "7.2"
+dirs = "6.0"
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22.1"
+hex = "0.4"
+rand = "0.9.3"
+url = "2.5"
+dialoguer = "0.12"
+anyhow = "1.0"
+thiserror = "2.0.17"
+primitive-types = "0.14"
+num-traits = "0.2"
+reqwest = { version = "0.12", features = ["json"] }
+sha2 = "0.11"
+ripemd = "0.2"
+env_logger = "0.11.10"
+log = "0.4"
+mime_guess = "2.0"
+uuid = { version = "1.23", features = ["v4"] }
+aes-gcm = "0.10"
+bip39 = { version = "2.2", default-features = false, features = ["std", "rand"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3.6.0"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+assert_cmd = "2.2.0"
+predicates = "3.1.4"

@@ -1,0 +1,21 @@
+[package]
+name = "atipicial_contracts_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+publish = false
+
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+hex = "0.4.3"
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+
+# Add examples based on the files in the examples directory
+[[example]]
+name = "deploy_atipicial_contract"
+path = "examples/deploy_atipicial_contract.rs" 

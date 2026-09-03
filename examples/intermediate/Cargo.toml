@@ -1,0 +1,22 @@
+[package]
+name = "intermediate-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Intermediate Atipicial examples for application developers"
+
+[[example]]
+name = "deploy_contract"
+path = "deploy_contract.rs"
+
+[[example]]
+name = "invoke_contract"
+path = "invoke_contract.rs"
+
+[[example]]
+name = "aep17_operations"
+path = "aep17_operations.rs"
+
+[[example]]
+name = "multi_sig_wallet"
+path = "multi_sig_wallet.rs"

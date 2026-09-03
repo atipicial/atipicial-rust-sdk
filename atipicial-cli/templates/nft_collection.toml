@@ -1,0 +1,73 @@
+# NFT Collection Template (AEP-11)
+# Starter for building an NFT collection dApp.
+
+[template]
+name = "nft-collection"
+description = "AEP-11 NFT collection starter"
+version = "1.0.6"
+author = "AtipicialRust Team"
+
+[files]
+"src/main.rs" = '''
+//! NFT Collection dApp starter (AEP-11)
+//!
+//! This template demonstrates:
+//! - Connecting to Atipicial TestNet
+//! - Basic project structure for an NFT collection app
+//! - Loading an on-chain AEP-11 contract hash from configuration
+
+use atipicial::atipicial_types::ScriptHash;
+use atipicial::sdk::Atipicial;
+use std::error::Error;
+use std::str::FromStr;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    println!("🖼️  NFT Collection Scaffold");
+
+    // Connect to Atipicial TestNet
+    let atipicial = Atipicial::testnet().await?;
+    let height = atipicial.get_block_height().await?;
+    println!("✅ Connected (height = {})", height);
+
+    let contract_hash = std::env::var("AEP11_CONTRACT_HASH")
+        .expect("set AEP11_CONTRACT_HASH to an existing AEP-11 contract script hash");
+    let contract = ScriptHash::from_str(&contract_hash)?;
+    println!("📦 NFT contract: {:?}", contract);
+
+    Ok(())
+}
+'''
+
+"Cargo.toml" = '''
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atipicial = "{{atipicial_version}}"
+tokio = { version = "1.45", features = ["full"] }
+anyhow = "1.0"
+'''
+
+"README.md" = '''
+# {{project_name}} - NFT Collection Starter (AEP-11)
+
+NFT collection starter built with AtipicialRust SDK v{{atipicial_version}}.
+
+## Next Steps
+
+- Implement AEP-11 contract deployment (see `contracts/nft.py`)
+- Add read-only calls (balance / tokensOf / properties) via `atipicial`
+- Add transaction signing + mint/transfer flows
+'''
+
+"contracts/nft.py" = '''
+"""
+AEP-11 NFT Contract Entry Point (Atipicial / boa3)
+
+Use this file for your audited AEP-11 contract implementation. The generated
+Rust client expects a deployed contract hash in AEP11_CONTRACT_HASH.
+"""
+'''

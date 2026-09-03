@@ -1,0 +1,39 @@
+[package]
+name = "atipicial_famous_contracts"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+hex = { package = "const-hex", version = "1.6", features = ["hex"] }
+
+[[example]]
+name = "flamingo_finance"
+path = "examples/flamingo_finance.rs"
+
+[[example]]
+name = "atipicialburger_atipicial"
+path = "examples/atipicialburger_atipicial.rs"
+
+[[example]]
+name = "grandshare"
+path = "examples/grandshare.rs"
+
+[[example]]
+name = "atipicialcompound"
+path = "examples/atipicialcompound.rs"
+
+[[example]]
+name = "query_atipicial"
+path = "examples/query_atipicial.rs"
+
+[[example]]
+name = "query_gas"
+path = "examples/query_gas.rs"

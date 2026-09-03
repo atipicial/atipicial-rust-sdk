@@ -1,0 +1,22 @@
+[package]
+name = "advanced-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Advanced Atipicial examples for enterprise applications"
+
+[[example]]
+name = "defi_swap"
+path = "defi_swap.rs"
+
+[[example]]
+name = "nft_marketplace"
+path = "nft_marketplace.rs"
+
+[[example]]
+name = "oracle_integration"
+path = "oracle_integration.rs"
+
+[[example]]
+name = "cross_chain_bridge"
+path = "cross_chain_bridge.rs"

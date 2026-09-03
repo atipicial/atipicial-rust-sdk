@@ -1,0 +1,225 @@
+//! Gas Estimation Example
+//!
+//! This example demonstrates how to use the new real-time gas estimation
+//! features in AtipicialRust v1.0.6 for accurate transaction fee calculation.
+
+use atipicial::atipicial_builder::{AccountSigner, GasEstimator, ScriptBuilder, Signer};
+use atipicial::atipicial_clients::{APITrait, HttpProvider, RpcClient};
+use atipicial::atipicial_protocol::{Account, AccountTrait};
+use atipicial::atipicial_types::{ContractParameter, ScriptHash, ScriptHashExtension};
+use atipicial::prelude::*;
+use num_bigint::BigInt;
+use std::str::FromStr;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+	println!("=== AtipicialRust Gas Estimation Example ===\n");
+
+	// Connect to Atipicial TestNet
+	let provider = HttpProvider::new("https://testnet1.atipicial.com:443")?;
+	let client = RpcClient::new(provider);
+
+	println!("Connected to Atipicial TestNet");
+	let block_count = client.get_block_count().await?;
+	println!("Current block height: {}\n", block_count);
+
+	// Create test account
+	// Prefer loading from an environment variable to avoid hardcoding secrets.
+	// If `ATC_WIF` is not set (or invalid), fall back to a new random account.
+	let account = match std::env::var("ATC_WIF") {
+		Ok(wif) => match Account::from_wif(&wif) {
+			Ok(account) => account,
+			Err(e) => {
+				println!("Invalid ATC_WIF ({e}); using a new random account instead.");
+				Account::create()?
+			},
+		},
+		Err(_) => {
+			println!(
+				"ATC_WIF not set; using a new random account (results may fail without funds)."
+			);
+			Account::create()?
+		},
+	};
+
+	println!("Using account: {}", account.get_address());
+
+	// Example 1: Simple transfer gas estimation
+	example_simple_transfer(&client, &account).await?;
+
+	// Example 2: Complex contract call gas estimation
+	example_contract_call(&client, &account).await?;
+
+	// Example 3: Batch gas estimation for multiple operations
+	example_batch_estimation(&client, &account).await?;
+
+	// Example 4: Gas estimation with safety margin
+	example_with_safety_margin(&client, &account).await?;
+
+	Ok(())
+}
+
+async fn example_simple_transfer(
+	client: &RpcClient<HttpProvider>,
+	account: &Account,
+) -> Result<(), Box<dyn std::error::Error>> {
+	println!("--- Example 1: Simple Transfer Gas Estimation ---");
+
+	// Build a simple ATC transfer script
+	let atipicial_token = ScriptHash::from_str("ef4073a0f2b305a38ec4050e4d3d28bc40ea63f5")?;
+	let recipient = ScriptHash::from_address("NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc")?;
+
+	let script = ScriptBuilder::new()
+		.contract_call(
+			&atipicial_token,
+			"transfer",
+			&[
+				ContractParameter::h160(&account.get_script_hash()),
+				ContractParameter::h160(&recipient),
+				ContractParameter::integer(100_000_000), // 1 ATC
+				ContractParameter::any(),
+			],
+			None,
+		)?
+		.to_bytes();
+
+	// Estimate gas consumption
+	let signers = vec![AccountSigner::called_by_entry(account)?.into()];
+
+	match GasEstimator::estimate_gas_realtime(client, &script, signers).await {
+		Ok(gas) => {
+			println!("Estimated gas for ATC transfer: {} GAS", gas as f64 / 100_000_000.0);
+			println!(
+				"This is approximately ${:.4} USD (at $10/GAS)",
+				(gas as f64 / 100_000_000.0) * 10.0
+			);
+		},
+		Err(e) => {
+			println!("Gas estimation failed (expected on testnet without balance): {}", e);
+		},
+	}
+
+	println!();
+	Ok(())
+}
+
+async fn example_contract_call(
+	client: &RpcClient<HttpProvider>,
+	_account: &Account,
+) -> Result<(), Box<dyn std::error::Error>> {
+	println!("--- Example 2: Complex Contract Call Gas Estimation ---");
+
+	// Build a more complex script with multiple operations
+	let script = ScriptBuilder::new()
+		.push_data("Hello, Atipicial!".as_bytes().to_vec())
+		.push_integer(BigInt::from(42))
+		.op_code(&[OpCode::Pack])
+		.push_integer(BigInt::from(2))
+		.op_code(&[OpCode::Pack])
+		.to_bytes();
+
+	match GasEstimator::estimate_gas_realtime(client, &script, vec![]).await {
+		Ok(gas) => {
+			println!("Estimated gas for complex operation: {} GAS", gas as f64 / 100_000_000.0);
+		},
+		Err(e) => {
+			println!("Gas estimation error: {}", e);
+		},
+	}
+
+	println!();
+	Ok(())
+}
+
+async fn example_batch_estimation(
+	client: &RpcClient<HttpProvider>,
+	_account: &Account,
+) -> Result<(), Box<dyn std::error::Error>> {
+	println!("--- Example 3: Batch Gas Estimation ---");
+
+	// Prepare multiple scripts for batch estimation
+	let scripts = [
+		(
+			ScriptBuilder::new()
+				.push_integer(BigInt::from(100))
+				.push_integer(BigInt::from(200))
+				.op_code(&[OpCode::Add])
+				.to_bytes(),
+			vec![],
+		),
+		(
+			ScriptBuilder::new()
+				.push_data("Test1".as_bytes().to_vec())
+				.push_data("Test2".as_bytes().to_vec())
+				.op_code(&[OpCode::Cat])
+				.to_bytes(),
+			vec![],
+		),
+		(ScriptBuilder::new().push_bool(true).op_code(&[OpCode::Not]).to_bytes(), vec![]),
+	];
+
+	// Convert to expected format
+	let scripts_ref: Vec<(&[u8], Vec<Signer>)> = scripts
+		.iter()
+		.map(|(script, signers)| (script.as_slice(), signers.clone()))
+		.collect();
+
+	match GasEstimator::batch_estimate_gas(client, scripts_ref).await {
+		Ok(estimates) => {
+			println!("Batch gas estimates:");
+			for (i, gas) in estimates.iter().enumerate() {
+				println!("  Operation {}: {} GAS", i + 1, *gas as f64 / 100_000_000.0);
+			}
+
+			let total: i64 = estimates.iter().sum();
+			println!("Total gas for all operations: {} GAS", total as f64 / 100_000_000.0);
+		},
+		Err(e) => {
+			println!("Batch estimation error: {}", e);
+		},
+	}
+
+	println!();
+	Ok(())
+}
+
+async fn example_with_safety_margin(
+	client: &RpcClient<HttpProvider>,
+	_account: &Account,
+) -> Result<(), Box<dyn std::error::Error>> {
+	println!("--- Example 4: Gas Estimation with Safety Margin ---");
+
+	// Build a script
+	let script = ScriptBuilder::new()
+		.push_integer(BigInt::from(1000))
+		.op_code(&[OpCode::Sqrt])
+		.to_bytes();
+
+	// Estimate without margin
+	let base_gas = GasEstimator::estimate_gas_realtime(client, &script, vec![]).await.unwrap_or(0);
+
+	// Estimate with 15% safety margin for production
+	let safe_gas = GasEstimator::estimate_gas_with_margin(
+		client,
+		&script,
+		vec![],
+		15, // 15% margin
+	)
+	.await
+	.unwrap_or(0);
+
+	println!("Base gas estimate: {} GAS", base_gas as f64 / 100_000_000.0);
+	println!("Safe gas estimate (15% margin): {} GAS", safe_gas as f64 / 100_000_000.0);
+
+	if base_gas > 0 {
+		let accuracy = GasEstimator::calculate_estimation_accuracy(safe_gas, base_gas);
+		println!("Safety margin applied: {:.2}%", accuracy);
+	}
+
+	println!("\nTip: Use safety margins in production to account for:");
+	println!("  - Network congestion");
+	println!("  - Minor script variations");
+	println!("  - Gas price fluctuations");
+
+	Ok(())
+}

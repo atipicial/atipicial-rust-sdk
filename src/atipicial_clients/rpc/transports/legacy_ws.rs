@@ -1,0 +1,761 @@
+use std::{
+	collections::{btree_map::Entry, BTreeMap},
+	fmt::{self, Debug},
+	sync::{
+		atomic::{AtomicU64, Ordering},
+		Arc,
+	},
+};
+
+use async_trait::async_trait;
+use futures_channel::{mpsc, oneshot};
+use futures_util::{
+	sink::{Sink, SinkExt},
+	stream::{Fuse, Stream, StreamExt},
+};
+use primitive_types::U256;
+use serde::{de::DeserializeOwned, Serialize};
+use serde_json::value::RawValue;
+use thiserror::Error;
+use tracing::trace;
+
+use crate::atipicial_clients::{
+	rpc::transports::common::{JsonRpcError, Params, Request, Response},
+	JsonRpcProvider, ProviderError, PubsubClient, RpcClient, RpcError,
+};
+
+macro_rules! if_not_wasm {
+    ($($item:item)*) => {$(
+        #[cfg(not(target_arch = "wasm32"))]
+        $item
+    )*}
+}
+
+// if_wasm! {
+// 	use wasm_bindgen::prelude::*;
+// 	use wasm_bindgen_futures::spawn_local;
+// 	use ws_stream_wasm::*;
+//
+// 	type Message = WsMessage;
+// 	type WsError = ws_stream_wasm::WsErr;
+// 	type WsStreamItem = Message;
+//
+// 	macro_rules! error {
+// 		( $( $t:tt )* ) => {
+// 			web_sys::console::error_1(&format!( $( $t )* ).into());
+// 		}
+// 	}
+// 	macro_rules! warn {
+// 		( $( $t:tt )* ) => {
+// 			web_sys::console::warn_1(&format!( $( $t )* ).into());
+// 		}
+// 	}
+// 	macro_rules! debug {
+// 		( $( $t:tt )* ) => {
+// 			web_sys::console::log_1(&format!( $( $t )* ).into());
+// 		}
+// 	}
+// }
+
+if_not_wasm! {
+	use tokio_tungstenite::{
+		connect_async_with_config,
+		tungstenite::{
+			self,
+			protocol::CloseFrame,
+		},
+	};
+	type Message = tungstenite::protocol::Message;
+	type WsError = tungstenite::Error;
+	type WsStreamItem = Result<Message, WsError>;
+	use super::Authorization;
+	use crate::config::AtipicialConstants;
+	use futures_util::{
+		future::{pending, Either},
+		FutureExt,
+	};
+	use tracing::{error, warn};
+	use http::Request as HttpRequest;
+	use tungstenite::client::IntoClientRequest;
+}
+
+type Pending = oneshot::Sender<Result<Box<RawValue>, JsonRpcError>>;
+type Subscription = mpsc::UnboundedSender<Box<RawValue>>;
+
+#[derive(Debug)]
+struct PendingRequest {
+	sender: Pending,
+	#[cfg(not(target_arch = "wasm32"))]
+	deadline: Option<std::time::Instant>,
+}
+
+impl PendingRequest {
+	#[cfg(not(target_arch = "wasm32"))]
+	fn new(sender: Pending, timeout: Option<core::time::Duration>) -> Self {
+		Self { sender, deadline: timeout.map(|t| std::time::Instant::now() + t) }
+	}
+
+	fn is_canceled(&self) -> bool {
+		self.sender.is_canceled()
+	}
+
+	fn send(
+		self,
+		value: Result<Box<RawValue>, JsonRpcError>,
+	) -> Result<(), Result<Box<RawValue>, JsonRpcError>> {
+		self.sender.send(value)
+	}
+}
+
+fn truncate_for_log(s: &str, max_bytes: usize) -> &str {
+	if s.len() <= max_bytes {
+		return s;
+	}
+	let mut end = max_bytes;
+	while end > 0 && !s.is_char_boundary(end) {
+		end -= 1;
+	}
+	&s[..end]
+}
+
+/// Instructions for the `WsServer`.
+enum Instruction {
+	/// JSON-RPC request
+	Request { id: u64, request: String, sender: Pending },
+	/// Create a new subscription
+	Subscribe { id: U256, sink: Subscription },
+	/// Cancel an existing subscription
+	Unsubscribe { id: U256 },
+}
+
+/// A JSON-RPC Client over Websockets.
+///
+/// # Example
+///
+/// ```no_run
+/// # async fn foo() -> Result<(), Box<dyn std::error::Error>> {
+/// use atipicial::atipicial_clients::Ws;
+///
+/// let ws = Ws::connect("ws://localhost:10334/ws").await?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct Ws {
+	id: Arc<AtomicU64>,
+	instructions: mpsc::UnboundedSender<Instruction>,
+}
+
+impl Debug for Ws {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("WebsocketProvider").field("id", &self.id).finish()
+	}
+}
+
+impl Ws {
+	/// Initializes a new WebSocket Client, given a Stream/Sink Websocket implementer.
+	/// The websocket connection must be initiated separately.
+	pub fn new<S>(ws: S) -> Self
+	where
+		S: Send
+			+ Sync
+			+ Stream<Item = WsStreamItem>
+			+ Sink<Message, Error = WsError>
+			+ Unpin
+			+ 'static,
+	{
+		let (sink, stream) = mpsc::unbounded();
+		// Spawn the server
+		WsServer::new(ws, stream).spawn();
+
+		Self { id: Arc::new(AtomicU64::new(1)), instructions: sink }
+	}
+
+	/// Returns true if the WS connection is active, false otherwise
+	pub fn ready(&self) -> bool {
+		!self.instructions.is_closed()
+	}
+
+	/// Initializes a new WebSocket Client
+	#[cfg(target_arch = "wasm32")]
+	pub async fn connect(url: &str) -> Result<Self, ClientError> {
+		let (_, wsio) = WsMeta::connect(url, None).await.expect_throw("Could not create websocket");
+
+		Ok(Self::new(wsio))
+	}
+
+	/// Initializes a new WebSocket Client
+	#[cfg(not(target_arch = "wasm32"))]
+	pub async fn connect(url: impl IntoClientRequest + Unpin) -> Result<Self, ClientError> {
+		let max_message_size = AtipicialConstants::max_rpc_message_size();
+		let config = tungstenite::protocol::WebSocketConfig::default()
+			.max_message_size(Some(max_message_size))
+			.max_frame_size(Some(max_message_size));
+
+		let connect_fut = connect_async_with_config(url, Some(config), false);
+		let (ws, _) = if let Some(timeout) = AtipicialConstants::rpc_request_timeout() {
+			match tokio::time::timeout(timeout, connect_fut).await {
+				Ok(res) => res?,
+				Err(_) => {
+					let err = std::io::Error::new(
+						std::io::ErrorKind::TimedOut,
+						format!("WebSocket connect timed out after {timeout:?}"),
+					);
+					return Err(WsError::Io(err).into());
+				},
+			}
+		} else {
+			connect_fut.await?
+		};
+		Ok(Self::new(ws))
+	}
+
+	/// Initializes a new WebSocket Client with authentication
+	#[cfg(not(target_arch = "wasm32"))]
+	pub async fn connect_with_auth(
+		uri: impl IntoClientRequest + Unpin,
+		auth: Authorization,
+	) -> Result<Self, ClientError> {
+		let mut request: HttpRequest<()> = uri.into_client_request()?;
+
+		let mut auth_value = http::HeaderValue::from_str(&auth.to_string())?;
+		auth_value.set_sensitive(true);
+
+		request.headers_mut().insert(http::header::AUTHORIZATION, auth_value);
+		Self::connect(request).await
+	}
+
+	fn send(&self, msg: Instruction) -> Result<(), ClientError> {
+		self.instructions.unbounded_send(msg).map_err(to_client_error)
+	}
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(? Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl JsonRpcProvider for Ws {
+	type Error = ClientError;
+
+	async fn fetch<T, R>(&self, method: &str, params: T) -> Result<R, ClientError>
+	where
+		T: Debug + Serialize + Send + Sync,
+		R: DeserializeOwned,
+	{
+		let next_id = self.id.fetch_add(1, Ordering::SeqCst);
+
+		// send the message
+		let (sender, receiver) = oneshot::channel();
+		let payload = Instruction::Request {
+			id: next_id,
+			request: serde_json::to_string(&Request::new(next_id, method, params))?,
+			sender,
+		};
+
+		// send the data
+		self.send(payload)?;
+
+		// wait for the response (the request itself may have errors as well)
+		let res = receiver.await??;
+
+		// parse it
+		Ok(serde_json::from_str(res.get())?)
+	}
+}
+
+impl PubsubClient for Ws {
+	type NotificationStream = mpsc::UnboundedReceiver<Box<RawValue>>;
+
+	fn subscribe<T: Into<U256>>(&self, id: T) -> Result<Self::NotificationStream, ClientError> {
+		let (sink, stream) = mpsc::unbounded();
+		self.send(Instruction::Subscribe { id: id.into(), sink })?;
+		Ok(stream)
+	}
+
+	fn unsubscribe<T: Into<U256>>(&self, id: T) -> Result<(), ClientError> {
+		self.send(Instruction::Unsubscribe { id: id.into() })
+	}
+}
+
+struct WsServer<S> {
+	ws: Fuse<S>,
+	instructions: Fuse<mpsc::UnboundedReceiver<Instruction>>,
+
+	pending: BTreeMap<u64, PendingRequest>,
+	subscriptions: BTreeMap<U256, Subscription>,
+	#[cfg(not(target_arch = "wasm32"))]
+	request_timeout: Option<core::time::Duration>,
+}
+
+impl<S> WsServer<S>
+where
+	S: Send + Sync + Stream<Item = WsStreamItem> + Sink<Message, Error = WsError> + Unpin,
+{
+	/// Instantiates the Websocket Server
+	fn new(ws: S, requests: mpsc::UnboundedReceiver<Instruction>) -> Self {
+		Self {
+			// Fuse the 2 steams together, so that we can `select` them in the
+			// Stream implementation
+			ws: ws.fuse(),
+			instructions: requests.fuse(),
+			pending: BTreeMap::default(),
+			subscriptions: BTreeMap::default(),
+			#[cfg(not(target_arch = "wasm32"))]
+			request_timeout: AtipicialConstants::rpc_request_timeout(),
+		}
+	}
+
+	/// Returns whether the all work has been completed.
+	///
+	/// If this method returns `true`, then the `instructions` channel has been closed and all
+	/// pending requests and subscriptions have been completed.
+	fn is_done(&self) -> bool {
+		self.instructions.is_done() && self.pending.is_empty() && self.subscriptions.is_empty()
+	}
+
+	/// Spawns the event loop
+	fn spawn(mut self)
+	where
+		S: 'static,
+	{
+		let f = async move {
+			loop {
+				if self.is_done() {
+					// debug!("work complete");
+					break;
+				}
+
+				if let Err(_e) = self.tick().await {
+					// error!("Received a WebSocket error: {:?}", e);
+					self.close_all_subscriptions();
+					break;
+				}
+			}
+		};
+
+		#[cfg(target_arch = "wasm32")]
+		spawn_local(f);
+
+		#[cfg(not(target_arch = "wasm32"))]
+		tokio::spawn(f);
+	}
+
+	// This will close all active subscriptions. Each process listening for
+	// updates will observe the end of their subscription streams.
+	fn close_all_subscriptions(&self) {
+		error!("Tearing down subscriptions");
+		for sub in self.subscriptions.values() {
+			sub.close_channel();
+		}
+	}
+
+	// dispatch an RPC request
+	async fn service_request(
+		&mut self,
+		id: u64,
+		request: String,
+		sender: Pending,
+	) -> Result<(), ClientError> {
+		#[cfg(not(target_arch = "wasm32"))]
+		let pending = PendingRequest::new(sender, self.request_timeout);
+
+		#[cfg(target_arch = "wasm32")]
+		let pending = PendingRequest { sender };
+
+		if self.pending.insert(id, pending).is_some() {
+			warn!("Replacing a pending request with id {:?}", id);
+		}
+
+		if let Err(e) = self.ws.send(Message::Text(request.into())).await {
+			error!("WS connection error: {:?}", e);
+			self.pending.remove(&id);
+		}
+		Ok(())
+	}
+
+	/// Dispatch a subscription request
+	async fn service_subscribe(&mut self, id: U256, sink: Subscription) -> Result<(), ClientError> {
+		if self.subscriptions.insert(id, sink).is_some() {
+			warn!("Replacing already-registered subscription with id {:?}", id);
+		}
+		Ok(())
+	}
+
+	/// Dispatch a unsubscribe request
+	async fn service_unsubscribe(&mut self, id: U256) -> Result<(), ClientError> {
+		if self.subscriptions.remove(&id).is_none() {
+			warn!("Unsubscribing from non-existent subscription with id {:?}", id);
+		}
+		Ok(())
+	}
+
+	/// Dispatch an outgoing message
+	async fn service(&mut self, instruction: Instruction) -> Result<(), ClientError> {
+		match instruction {
+			Instruction::Request { id, request, sender } => {
+				self.service_request(id, request, sender).await
+			},
+			Instruction::Subscribe { id, sink } => self.service_subscribe(id, sink).await,
+			Instruction::Unsubscribe { id } => self.service_unsubscribe(id).await,
+		}
+	}
+
+	#[cfg(not(target_arch = "wasm32"))]
+	async fn handle_ping(&mut self, inner: Vec<u8>) -> Result<(), ClientError> {
+		self.ws.send(Message::Pong(inner.into())).await?;
+		Ok(())
+	}
+
+	async fn handle_text(&mut self, inner: String) -> Result<(), ClientError> {
+		let max_message_size = AtipicialConstants::max_rpc_message_size();
+		if inner.len() > max_message_size {
+			return Err(ClientError::JsonError(serde::de::Error::custom(format!(
+				"WebSocket message exceeded {} bytes",
+				max_message_size
+			))));
+		}
+
+		trace!(len = inner.len(), preview = truncate_for_log(&inner, 512), "received message");
+		let (id, result) = match serde_json::from_str(&inner)? {
+			Response::Success { id, result } => (id, Ok(result.to_owned())),
+			Response::Error { id, error } => (id, Err(error)),
+			Response::Notification { params, .. } => return self.handle_notification(params),
+		};
+
+		if let Some(request) = self.pending.remove(&id) {
+			if !request.is_canceled() {
+				request.send(result).map_err(to_client_error)?;
+			}
+		}
+
+		Ok(())
+	}
+
+	#[cfg(not(target_arch = "wasm32"))]
+	fn next_request_deadline(&self) -> Option<std::time::Instant> {
+		self.pending.values().filter_map(|p| p.deadline).min()
+	}
+
+	#[cfg(not(target_arch = "wasm32"))]
+	fn expire_timed_out_requests(&mut self) {
+		let Some(timeout) = self.request_timeout else {
+			return;
+		};
+
+		let now = std::time::Instant::now();
+		let mut expired_ids = Vec::new();
+		for (id, pending) in self.pending.iter() {
+			if pending.deadline.is_some_and(|d| d <= now) {
+				expired_ids.push(*id);
+			}
+		}
+
+		for id in expired_ids {
+			let Some(pending) = self.pending.remove(&id) else {
+				continue;
+			};
+
+			if pending.is_canceled() {
+				continue;
+			}
+
+			let _ = pending.send(Err(JsonRpcError {
+				code: -32000,
+				message: format!("request timed out after {timeout:?}"),
+				data: None,
+			}));
+		}
+	}
+
+	fn handle_notification(&mut self, params: Params<'_>) -> Result<(), ClientError> {
+		let id = params.subscription;
+		if let Entry::Occupied(stream) = self.subscriptions.entry(id) {
+			if let Err(err) = stream.get().unbounded_send(params.result.to_owned()) {
+				if err.is_disconnected() {
+					// subscription channel was closed on the receiver end
+					stream.remove();
+				}
+				return Err(to_client_error(err));
+			}
+		}
+
+		Ok(())
+	}
+
+	#[cfg(target_arch = "wasm32")]
+	async fn handle(&mut self, resp: Message) -> Result<(), ClientError> {
+		match resp {
+			Message::Text(inner) => self.handle_text(inner.to_string()).await,
+			Message::Binary(buf) => Err(ClientError::UnexpectedBinary(buf)),
+		}
+	}
+
+	#[cfg(not(target_arch = "wasm32"))]
+	async fn handle(&mut self, resp: Message) -> Result<(), ClientError> {
+		match resp {
+			Message::Text(inner) => self.handle_text(inner.to_string()).await,
+			Message::Frame(_) => Ok(()), // Server is allowed to send Raw frames
+			Message::Ping(inner) => self.handle_ping(inner.to_vec()).await,
+			Message::Pong(_) => Ok(()), // Server is allowed to send unsolicited pongs.
+			Message::Close(Some(frame)) => Err(ClientError::WsClosed(frame)),
+			Message::Close(None) => Err(ClientError::UnexpectedClose),
+			Message::Binary(buf) => Err(ClientError::UnexpectedBinary(buf.to_vec())),
+		}
+	}
+
+	/// Processes 1 instruction or 1 incoming websocket message
+	#[allow(clippy::single_match)]
+	#[cfg(target_arch = "wasm32")]
+	async fn tick(&mut self) -> Result<(), ClientError> {
+		futures_util::select! {
+			// Handle requests
+			instruction = self.instructions.select_next_some() => {
+				self.service(instruction).await?;
+			},
+			// Handle ws messages
+			resp = self.ws.next() => match resp {
+				Some(resp) => self.handle(resp).await?,
+				None => {
+					return Err(ClientError::UnexpectedClose);
+				},
+			}
+		};
+
+		Ok(())
+	}
+
+	/// Processes 1 instruction or 1 incoming websocket message
+	#[allow(clippy::single_match)]
+	#[cfg(not(target_arch = "wasm32"))]
+	async fn tick(&mut self) -> Result<(), ClientError> {
+		self.expire_timed_out_requests();
+
+		let request_timeout = {
+			let fut = if let Some(deadline) = self.next_request_deadline() {
+				Either::Left(tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)))
+			} else {
+				Either::Right(pending::<()>())
+			};
+			fut.fuse()
+		};
+		tokio::pin!(request_timeout);
+
+		futures_util::select! {
+			// Handle requests
+			instruction = self.instructions.select_next_some() => {
+				self.service(instruction).await?;
+			},
+			_ = request_timeout => {
+				self.expire_timed_out_requests();
+			},
+			// Handle ws messages
+			resp = self.ws.next() => match resp {
+				Some(Ok(resp)) => self.handle(resp).await?,
+				Some(Err(err)) => {
+					tracing::error!(?err);
+					return Err(ClientError::UnexpectedClose);
+				}
+				None => {
+					return Err(ClientError::UnexpectedClose);
+				},
+			}
+		};
+
+		Ok(())
+	}
+}
+
+// TrySendError is private :(
+fn to_client_error<T: Debug>(err: T) -> ClientError {
+	ClientError::ChannelError(format!("{err:?}"))
+}
+
+/// Error thrown when sending a WS message
+#[derive(Debug, Error)]
+pub enum ClientError {
+	/// Thrown if deserialization failed
+	#[error(transparent)]
+	JsonError(#[from] serde_json::Error),
+
+	#[error(transparent)]
+	/// Thrown if the response could not be parsed
+	JsonRpcError(#[from] JsonRpcError),
+
+	/// Thrown if the websocket responds with binary data
+	#[error("Websocket responded with unexpected binary data")]
+	UnexpectedBinary(Vec<u8>),
+
+	/// Thrown if there's an error over the WS connection
+	#[error(transparent)]
+	TungsteniteError(#[from] WsError),
+
+	#[error("{0}")]
+	/// Error in internal mpsc channel
+	ChannelError(String),
+
+	#[error("{0}")]
+	/// Error in internal oneshot channel
+	Canceled(#[from] oneshot::Canceled),
+
+	/// Remote server sent a Close message
+	#[error("Websocket closed with info: {0:?}")]
+	#[cfg(not(target_arch = "wasm32"))]
+	WsClosed(CloseFrame),
+
+	/// Remote server sent a Close message
+	#[error("Websocket closed")]
+	#[cfg(target_arch = "wasm32")]
+	WsClosed,
+
+	/// Something caused the websocket to close
+	#[error("WebSocket connection closed unexpectedly")]
+	UnexpectedClose,
+
+	/// Could not create an auth header for websocket handshake
+	#[error(transparent)]
+	#[cfg(not(target_arch = "wasm32"))]
+	WsAuth(#[from] http::header::InvalidHeaderValue),
+
+	/// Unable to create a valid Uri
+	#[error(transparent)]
+	#[cfg(not(target_arch = "wasm32"))]
+	UriError(#[from] http::uri::InvalidUri),
+
+	/// Unable to create a valid Request
+	#[error(transparent)]
+	#[cfg(not(target_arch = "wasm32"))]
+	RequestError(#[from] http::Error),
+}
+
+impl RpcError for ClientError {
+	fn as_error_response(&self) -> Option<&super::JsonRpcError> {
+		if let ClientError::JsonRpcError(err) = self {
+			Some(err)
+		} else {
+			None
+		}
+	}
+
+	fn as_serde_error(&self) -> Option<&serde_json::Error> {
+		match self {
+			ClientError::JsonError(err) => Some(err),
+			_ => None,
+		}
+	}
+}
+
+impl From<ClientError> for ProviderError {
+	fn from(src: ClientError) -> Self {
+		match src {
+			ClientError::JsonRpcError(err) => ProviderError::JsonRpcError(err),
+			ClientError::JsonError(err) => ProviderError::SerdeJson(err),
+			ClientError::UnexpectedBinary(data) => ProviderError::CustomError(format!(
+				"Unexpected binary response: {}",
+				hex::encode(data)
+			)),
+			ClientError::ChannelError(msg) => ProviderError::CustomError(msg),
+			ClientError::Canceled(err) => ProviderError::CustomError(err.to_string()),
+			ClientError::TungsteniteError(err) => ProviderError::CustomError(err.to_string()),
+			#[cfg(not(target_arch = "wasm32"))]
+			ClientError::WsClosed(frame) => ProviderError::CustomError(format!("{frame:?}")),
+			#[cfg(target_arch = "wasm32")]
+			ClientError::WsClosed => ProviderError::CustomError("Websocket closed".into()),
+			ClientError::UnexpectedClose => {
+				ProviderError::CustomError("WebSocket connection closed unexpectedly".into())
+			},
+			#[cfg(not(target_arch = "wasm32"))]
+			ClientError::WsAuth(err) => ProviderError::CustomError(err.to_string()),
+			#[cfg(not(target_arch = "wasm32"))]
+			ClientError::UriError(err) => ProviderError::CustomError(err.to_string()),
+			#[cfg(not(target_arch = "wasm32"))]
+			ClientError::RequestError(err) => ProviderError::CustomError(err.to_string()),
+		}
+	}
+}
+
+/* NOTE: These tests require the testcontainers crate to be added as a dev-dependency.
+   Uncomment this module after adding:
+   - testcontainers = "0.23"
+   - testcontainers-modules = { version = "0.11", features = ["anvil"] }
+   to the [dev-dependencies] section in Cargo.toml
+
+#[allow(unexpected_cfgs)]
+#[cfg(all(test, feature = "legacy-ws", feature = "container-tests", not(target_arch = "wasm32")))]
+mod tests {
+	use super::{Ws, WsServer};
+	use crate::{atipicial_types::block::Block, prelude::U256};
+	use futures_channel::mpsc;
+	use futures_util::StreamExt;
+	use testcontainers_modules::anvil::Anvil;
+
+	#[tokio::test]
+	async fn request() {
+		let anvil = Anvil::default().block_time(1u64).spawn();
+		let ws = Ws::connect(anvil.ws_endpoint()).await.unwrap();
+
+		let block_num: U256 = ws.request("atipicial_blockNumber", ()).await.unwrap();
+		tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+		let block_num2: U256 = ws.request("atipicial_blockNumber", ()).await.unwrap();
+		assert!(block_num2 > block_num);
+	}
+
+	#[tokio::test]
+	async fn subscription() {
+		use crate::atipicial_types::TxHash;
+
+		let anvil = Anvil::default().block_time(1u64).spawn();
+		let ws = Ws::connect(anvil.ws_endpoint()).await.unwrap();
+
+		// Subscribing requires sending the sub request and then subscribing to
+		// the returned sub_id
+		let sub_id: U256 = ws.request("atipicial_subscribe", ["newHeads"]).await.unwrap();
+		let stream = ws.subscribe(sub_id).unwrap();
+
+		let blocks: Vec<u64> = stream
+			.take(3)
+			.map(|item| {
+				let block: Block<TxHash> = serde_json::from_str(item.get()).unwrap();
+				block.index
+			})
+			.collect()
+			.await;
+		assert_eq!(blocks, vec![1, 2, 3]);
+	}
+
+	#[tokio::test]
+	async fn deserialization_fails() {
+		let anvil = Anvil::default().block_time(1u64).spawn();
+		let (ws, _) = tokio_tungstenite::connect_async(anvil.ws_endpoint()).await.unwrap();
+		let malformed_data = String::from("not a valid message");
+		let (_, stream) = mpsc::unbounded();
+		let resp = WsServer::new(ws, stream).handle_text(malformed_data).await;
+		resp.unwrap_err();
+	}
+}
+*/
+
+impl RpcClient<Ws> {
+	/// Direct connection to a websocket endpoint
+	#[cfg(not(target_arch = "wasm32"))]
+	pub async fn connect(
+		url: impl tokio_tungstenite::tungstenite::client::IntoClientRequest + Unpin,
+	) -> Result<Self, ProviderError> {
+		let ws = Ws::connect(url).await?;
+		Ok(Self::new(ws))
+	}
+
+	/// Direct connection to a websocket endpoint
+	#[cfg(target_arch = "wasm32")]
+	pub async fn connect(url: &str) -> Result<Self, ProviderError> {
+		let ws = Ws::connect(url).await?;
+		Ok(Self::new(ws))
+	}
+
+	/// Connect to a WS RPC provider with authentication details
+	#[cfg(not(target_arch = "wasm32"))]
+	pub async fn connect_with_auth(
+		url: impl tokio_tungstenite::tungstenite::client::IntoClientRequest + Unpin,
+		auth: Authorization,
+	) -> Result<Self, ProviderError> {
+		let ws = Ws::connect_with_auth(url, auth).await?;
+		Ok(Self::new(ws))
+	}
+}

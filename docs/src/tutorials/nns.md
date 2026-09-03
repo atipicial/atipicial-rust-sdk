@@ -1,0 +1,367 @@
+<!-- Atipicial Chain · sovereign Layer-1 for decentralized AGI coordination -->
+<!-- 👑 Founded & engineered by xmoohad — Blockchain Scientist · Computer Programmer -->
+
+# Atipicial Name Service (NNS)
+
+This tutorial covers working with the Atipicial Name Service (NNS) on the Atipicial blockchain using the AtipicialRust SDK.
+
+## Understanding NNS
+
+The Atipicial Name Service (NNS) is a distributed, open-source naming system based on the Atipicial blockchain. It maps human-readable names to machine-readable identifiers such as Atipicial addresses, contract script hashes, and more. This makes it easier to work with blockchain addresses and resources.
+
+## Key Concepts
+
+- **Domain**: A human-readable name registered in the NNS (e.g., `example.atipicial`)
+- **Record**: Data associated with a domain (e.g., address, text record, etc.)
+- **TTL**: Time-to-live for a domain record
+- **Owner**: The account that owns a domain and can manage its records
+- **Resolver**: Contract that translates between domain names and addresses/resources
+
+## Creating an NNS Instance
+
+To interact with the NNS, you first need to create an NNS instance:
+
+```rust,no_run
+use atipicial::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    Ok(())
+}
+```
+
+## Checking Domain Availability
+
+Before registering a domain, you should check if it's available:
+
+```rust,no_run
+use atipicial::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Check if a domain is available
+    let domain = "example.atipicial";
+    let is_available = nns.is_available(domain).await?;
+    
+    if is_available {
+        println!("Domain {} is available for registration", domain);
+    } else {
+        println!("Domain {} is already registered", domain);
+    }
+    
+    Ok(())
+}
+```
+
+## Registering a Domain
+
+If a domain is available, you can register it:
+
+```rust,no_run
+use atipicial::prelude::*;
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Load your wallet
+    let wallet_path = Path::new("my-wallet.json");
+    let password = "my-secure-password";
+    let wallet = Wallet::load(wallet_path, password)?;
+    
+    // Get the account that will register the domain
+    let account = wallet.default_account()?;
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Check if a domain is available
+    let domain = "example.atipicial";
+    let is_available = nns.is_available(domain).await?;
+    
+    if is_available {
+        // Register the domain
+        let registration_period = 1; // in years
+        let txid = nns.register(account, domain, registration_period).await?;
+        
+        println!("Domain registration initiated with transaction ID: {}", txid);
+        
+        // Wait for the transaction to be confirmed
+        let receipt = provider.wait_for_transaction(&txid, 60, 2).await?;
+        println!("Domain registration confirmed: {:?}", receipt);
+    } else {
+        println!("Domain {} is already registered", domain);
+    }
+    
+    Ok(())
+}
+```
+
+## Setting Domain Records
+
+Once you own a domain, you can set various records for it:
+
+```rust,no_run
+use atipicial::prelude::*;
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Load your wallet
+    let wallet_path = Path::new("my-wallet.json");
+    let password = "my-secure-password";
+    let wallet = Wallet::load(wallet_path, password)?;
+    
+    // Get the account that owns the domain
+    let account = wallet.default_account()?;
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Domain name
+    let domain = "example.atipicial";
+    
+    // Set an address record
+    let address = account.address();
+    let txid = nns.set_address(account, domain, address).await?;
+    
+    println!("Address record set with transaction ID: {}", txid);
+    
+    // Wait for the transaction to be confirmed
+    let receipt = provider.wait_for_transaction(&txid, 60, 2).await?;
+    println!("Address record confirmed: {:?}", receipt);
+    
+    // Set a text record
+    let key = "email";
+    let value = "contact@example.atipicial";
+    let text_txid = nns.set_text(account, domain, key, value).await?;
+    
+    println!("Text record set with transaction ID: {}", text_txid);
+    
+    Ok(())
+}
+```
+
+## Resolving Domain Records
+
+You can resolve domain records to get the associated data:
+
+```rust,no_run
+use atipicial::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Domain name
+    let domain = "example.atipicial";
+    
+    // Resolve address
+    let address = nns.resolve_address(domain).await?;
+    
+    if let Some(addr) = address {
+        println!("Domain {} resolves to address: {}", domain, addr);
+    } else {
+        println!("No address record found for domain {}", domain);
+    }
+    
+    // Resolve text record
+    let key = "email";
+    let text = nns.resolve_text(domain, key).await?;
+    
+    if let Some(value) = text {
+        println!("Text record '{}' for domain {}: {}", key, domain, value);
+    } else {
+        println!("No text record '{}' found for domain {}", key, domain);
+    }
+    
+    Ok(())
+}
+```
+
+## Renewing a Domain
+
+Domains need to be renewed periodically to maintain ownership:
+
+```rust,no_run
+use atipicial::prelude::*;
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Load your wallet
+    let wallet_path = Path::new("my-wallet.json");
+    let password = "my-secure-password";
+    let wallet = Wallet::load(wallet_path, password)?;
+    
+    // Get the account that owns the domain
+    let account = wallet.default_account()?;
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Domain name
+    let domain = "example.atipicial";
+    
+    // Check domain expiration
+    let expiration = nns.get_expiration(domain).await?;
+    
+    if let Some(exp) = expiration {
+        println!("Domain {} expires at: {}", domain, exp);
+        
+        // Renew the domain
+        let renewal_period = 1; // in years
+        let txid = nns.renew(account, domain, renewal_period).await?;
+        
+        println!("Domain renewal initiated with transaction ID: {}", txid);
+        
+        // Wait for the transaction to be confirmed
+        let receipt = provider.wait_for_transaction(&txid, 60, 2).await?;
+        println!("Domain renewal confirmed: {:?}", receipt);
+    } else {
+        println!("Domain {} is not registered", domain);
+    }
+    
+    Ok(())
+}
+```
+
+## Transferring Domain Ownership
+
+You can transfer ownership of a domain to another address:
+
+```rust,no_run
+use atipicial::prelude::*;
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Load your wallet
+    let wallet_path = Path::new("my-wallet.json");
+    let password = "my-secure-password";
+    let wallet = Wallet::load(wallet_path, password)?;
+    
+    // Get the account that owns the domain
+    let account = wallet.default_account()?;
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Domain name
+    let domain = "example.atipicial";
+    
+    // New owner address
+    let new_owner = "NZNos2WqTbu5oCgyfss9kUJgBXJqhuYAaj".parse::<Address>()?;
+    
+    // Transfer ownership
+    let txid = nns.transfer(account, domain, new_owner).await?;
+    
+    println!("Domain transfer initiated with transaction ID: {}", txid);
+    
+    // Wait for the transaction to be confirmed
+    let receipt = provider.wait_for_transaction(&txid, 60, 2).await?;
+    println!("Domain transfer confirmed: {:?}", receipt);
+    
+    Ok(())
+}
+```
+
+## Using NNS in Applications
+
+You can integrate NNS resolution into your applications to allow users to use domain names instead of addresses:
+
+```rust,no_run
+use atipicial::prelude::*;
+use std::path::Path;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Connect to a Atipicial TestNet node
+    let provider = Provider::new_http("https://testnet1.atipicial.coz.io:443");
+    
+    // Load your wallet
+    let wallet_path = Path::new("my-wallet.json");
+    let password = "my-secure-password";
+    let wallet = Wallet::load(wallet_path, password)?;
+    
+    // Get the account that will send tokens
+    let account = wallet.default_account()?;
+    
+    // Create an NNS instance
+    let nns = NameService::new(provider.clone());
+    
+    // Create a GAS token instance
+    let gas_token = GasToken::new(provider.clone());
+    
+    // Domain or address input from user
+    let recipient_input = "example.atipicial";
+    
+    // Determine if input is a domain or address
+    let recipient_address = if recipient_input.ends_with(".atipicial") {
+        // Resolve domain to address
+        match nns.resolve_address(recipient_input).await? {
+            Some(addr) => addr,
+            None => {
+                println!("Could not resolve domain {}", recipient_input);
+                return Ok(());
+            }
+        }
+    } else {
+        // Parse as address directly
+        recipient_input.parse::<Address>()?
+    };
+    
+    // Amount to transfer
+    let amount = 1_00000000; // 1 GAS (with 8 decimals)
+    
+    // Transfer GAS
+    let txid = gas_token.transfer(account, recipient_address, amount, None).await?;
+    println!("Transfer sent to {} with transaction ID: {}", recipient_input, txid);
+    
+    Ok(())
+}
+```
+
+## Best Practices
+
+1. **Check Domain Availability**: Always check if a domain is available before attempting to register it.
+2. **Monitor Expiration**: Keep track of domain expiration dates and renew domains before they expire.
+3. **Secure Ownership**: Ensure that the account owning valuable domains is properly secured.
+4. **Validate Input**: When accepting domain names as input, validate them before attempting to resolve.
+5. **Handle Resolution Failures**: Always handle cases where domain resolution fails gracefully.
+6. **Test on TestNet**: Always test your NNS operations on TestNet before moving to MainNet.
+
+<!-- toc -->
+
+---
+
+> **Atipicial Chain** — sovereign Layer-1 for decentralized AGI coordination.
+> 👑 Founded & engineered by **xmoohad** — Blockchain Scientist · Computer Programmer.
+> `ATC` Atipicial Coin · `ATD` AtipicialDollar · addresses begin with **A**

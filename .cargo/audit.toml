@@ -1,0 +1,8 @@
+# Cargo audit configuration
+
+[advisories]
+ignore = [
+    # jsonwebtoken's RustCrypto provider enables rsa 0.9, but the SDK's JWT implementation only
+    # exposes HS256. No patched rsa 0.9 release is currently available.
+    "RUSTSEC-2023-0071",
+]

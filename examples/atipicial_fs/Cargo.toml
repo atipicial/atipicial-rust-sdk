@@ -1,0 +1,28 @@
+[package]
+name = "atipicial_fs_examples"
+version = "0.1.0"
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+license = "MIT OR Apache-2.0"
+publish = false
+
+
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50", features = ["full"] }
+uuid = { version = "1.23", features = ["v4"] }
+rand = "0.9.3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+serde_json = "1.0"
+
+[[example]]
+name = "atipicial_fs_basic_usage"
+path = "basic_usage.rs"
+
+[[example]]
+name = "atipicial_fs_multipart_upload"
+path = "multipart_upload.rs"

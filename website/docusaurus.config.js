@@ -1,0 +1,364 @@
+// @ts-check
+// Note: type annotations allow type checking and IDEs autocompletion
+
+const { themes } = require('prism-react-renderer');
+const lightCodeTheme = themes.github;
+const darkCodeTheme = themes.dracula;
+
+/** @type {import('@docusaurus/types').Config} */
+const config = {
+  title: 'AtipicialRust v2.1.0',
+  tagline: 'Production-ready Atipicial blockchain development toolkit built in Rust',
+  favicon: 'img/favicon.png',
+
+  // Set the production url of your site here
+  url: 'https://atipicialrust.netlify.app',
+  // Set the /<baseUrl>/ pathname under which your site is served
+  // For GitHub pages deployment, it is often '/<projectName>/'
+  baseUrl: '/',
+
+  // GitHub pages deployment config.
+  // If you aren't using GitHub pages, you don't need these.
+  organizationName: 'R3E-Network', // Usually your GitHub org/user name.
+  projectName: 'AtipicialRust', // Usually your repo name.
+
+  onBrokenLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
+
+  // Even if you don't use internalization, you can use this field to set useful
+  // metadata like html lang. For example, if your site is Chinese, you may want
+  // to replace "en" with "zh-Hans".
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en'],
+  },
+
+  presets: [
+    [
+      'classic',
+      /** @type {import('@docusaurus/preset-classic').Options} */
+      ({
+        docs: {
+          sidebarPath: require.resolve('./sidebars.js'),
+          // Please change this to your repo.
+          // Remove this to remove the "edit this page" links.
+          editUrl: 'https://github.com/r3e-network/atipicial-rust-sdk/tree/master/website/',
+          showLastUpdateAuthor: true,
+          showLastUpdateTime: true,
+          includeCurrentVersion: true,
+          versions: {
+            current: {
+              label: 'v2.1.0',
+              path: '',
+            },
+          },
+        },
+        blog: {
+          showReadingTime: true,
+          blogTitle: 'AtipicialRust Blog',
+          blogDescription: 'Latest updates, tutorials, and insights about AtipicialRust SDK development',
+          postsPerPage: 'ALL',
+          // Please change this to your repo.
+          // Remove this to remove the "edit this page" links.
+          editUrl: 'https://github.com/r3e-network/atipicial-rust-sdk/tree/master/website/',
+        },
+        theme: {
+          customCss: require.resolve('./src/css/custom.css'),
+        },
+        sitemap: {
+          changefreq: 'weekly',
+          priority: 0.5,
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
+      }),
+    ],
+  ],
+
+  themeConfig:
+    /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
+    ({
+      // Replace with your project's social card
+      image: 'img/atipicialrust-social-card.jpg',
+      metadata: [
+        { name: 'keywords', content: 'atipicial, blockchain, rust, sdk, atipicial, cryptocurrency, smart-contracts, defi' },
+        { name: 'description', content: 'AtipicialRust v2.1.0 - A production-ready Rust SDK for Atipicial blockchain development. Build high-performance dApps with type-safe, modern Rust. Optimized and production-ready.' },
+        { property: 'og:image', content: 'https://atipicialrust.netlify.app/img/atipicialrust-social-card.jpg' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: 'https://atipicialrust.netlify.app/img/atipicialrust-social-card.jpg' },
+      ],
+      navbar: {
+        title: 'AtipicialRust',
+        logo: {
+          alt: 'AtipicialRust Logo',
+          src: 'img/logo-icon.png',
+          srcDark: 'img/logo-icon.png',
+          width: 32,
+          height: 32,
+        },
+        items: [
+          {
+            type: 'docSidebar',
+            sidebarId: 'tutorialSidebar',
+            position: 'left',
+            label: '📚 Documentation',
+          },
+          {
+            to: '/examples',
+            label: '💡 Examples',
+            position: 'left',
+          },
+          {
+            type: 'dropdown',
+            label: '🛠️ Tools',
+            position: 'left',
+            items: [
+              {
+                label: '🦀 Rust SDK',
+                to: '/sdk/intro',
+              },
+              {
+                label: '⌨️ CLI Tools',
+                to: '/cli/intro',
+              },
+            ],
+          },
+          {
+            type: 'dropdown',
+            label: '🔗 Resources',
+            position: 'right',
+            items: [
+              {
+                label: '📖 API Reference',
+                href: 'https://docs.rs/atipicial',
+              },
+              {
+                label: '📦 Crates.io',
+                href: 'https://crates.io/crates/atipicial',
+              },
+              {
+                label: '🌐 Atipicial Developer Portal',
+                href: 'https://developers.atipicial.com/',
+              },
+              {
+                label: '🔗 Atipicial X Documentation',
+                href: 'https://docs.atipicialx.network/',
+              },
+              {
+                label: '⭐ GitHub Repository',
+                href: 'https://github.com/r3e-network/atipicial-rust-sdk',
+                className: 'dropdown-divider-top',
+              },
+            ],
+          },
+        ],
+      },
+      footer: {
+        style: 'dark',
+        links: [
+          {
+            title: '📚 Documentation',
+            items: [
+              {
+                label: 'Getting Started',
+                to: '/docs/intro',
+              },
+              {
+                label: 'SDK Documentation',
+                to: '/sdk/intro',
+              },
+              {
+                label: 'CLI Documentation',
+                to: '/cli/intro',
+              },
+              {
+                label: 'Examples',
+                to: '/examples',
+              },
+            ],
+          },
+          {
+            title: '🛠️ Tools',
+            items: [
+              {
+                label: 'Rust SDK',
+                to: '/sdk/installation',
+              },
+              {
+                label: 'CLI Tools',
+                to: '/cli/intro',
+              },
+            ],
+          },
+          {
+            title: '🌐 Community',
+            items: [
+              {
+                label: 'GitHub',
+                href: 'https://github.com/r3e-network/atipicial-rust-sdk',
+              },
+              {
+                label: 'Discord',
+                href: 'https://discord.gg/atipicial-smart-contracts',
+              },
+              {
+                label: 'Stack Overflow',
+                href: 'https://stackoverflow.com/questions/tagged/atipicial',
+              },
+              {
+                label: 'Reddit',
+                href: 'https://reddit.com/r/ATC',
+              },
+            ],
+          },
+          {
+            title: '🔗 More',
+            items: [
+              {
+                label: 'API Reference',
+                href: 'https://docs.rs/atipicial',
+              },
+              {
+                label: 'Crates.io',
+                href: 'https://crates.io/crates/atipicial',
+              },
+              {
+                label: 'Atipicial Developer Portal',
+                href: 'https://developers.atipicial.com/',
+              },
+              {
+                label: 'Atipicial X Documentation',
+                href: 'https://docs.atipicialx.network/',
+              },
+            ],
+          },
+        ],
+        logo: {
+          alt: 'AtipicialRust Logo',
+          src: 'img/logo.png',
+          width: 160,
+          height: 51,
+        },
+        copyright: `
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #333;">
+            <p>Copyright © ${new Date().getFullYear()} R3E Network. Built with ❤️ and Docusaurus.</p>
+            <p>AtipicialRust v2.1.0 - Production-Ready Atipicial Development Suite - Optimized and Enhanced</p>
+          </div>
+        `,
+      },
+      prism: {
+        theme: lightCodeTheme,
+        darkTheme: darkCodeTheme,
+        additionalLanguages: ['rust', 'toml', 'bash', 'json', 'yaml', 'typescript', 'javascript'],
+        magicComments: [
+          {
+            className: 'theme-code-block-highlighted-line',
+            line: 'highlight-next-line',
+            block: { start: 'highlight-start', end: 'highlight-end' },
+          },
+          {
+            className: 'code-block-error-line',
+            line: 'This will error',
+          },
+        ],
+      },
+      colorMode: {
+        defaultMode: 'dark',
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
+      },
+      announcementBar: {
+        id: 'v2.1.0-release',
+        content:
+          '🎉 <strong>AtipicialRust v2.1.0</strong> is now available! Checked amounts, provider-aware retries, secret-safe errors, and stronger release validation. <a target="_blank" rel="noopener noreferrer" href="https://github.com/r3e-network/atipicial-rust-sdk/releases/tag/v2.1.0">See what\'s new</a>',
+        backgroundColor: '#059669',
+        textColor: '#ffffff',
+        isCloseable: true,
+      },
+      algolia: {
+        // The application ID provided by Algolia
+        appId: 'BH4D9OD16A',
+        // Public API key: it is safe to commit it
+        apiKey: 'eeb9df8bb56a72c7c37527b60b8cb52c',
+        indexName: 'atipicialrust',
+        // Optional: see doc section below
+        contextualSearch: true,
+        // Optional: Specify domains where the navigation should occur through window.location instead on history.push
+        externalUrlRegex: 'external\\.com|domain\\.com',
+        // Optional: Replace parts of the item URLs from Algolia. Useful when using the same search index for multiple deployments using a different baseUrl. You can use regexp or string in the `from` param. For example: localhost:3000 vs myCompany.com/docs
+        replaceSearchResultPathname: {
+          from: '/docs/', // or as RegExp: /\/docs\//
+          to: '/',
+        },
+        // Optional: Algolia search parameters
+        searchParameters: {},
+        // Optional: path for search page that enabled by default (`false` to disable it)
+        searchPagePath: 'search',
+      },
+      docs: {
+        sidebar: {
+          hideable: true,
+          autoCollapseCategories: true,
+        },
+      },
+    }),
+
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'sdk',
+        path: 'sdk',
+        routeBasePath: 'sdk',
+        sidebarPath: require.resolve('./sidebars-sdk.js'),
+        editUrl: 'https://github.com/r3e-network/atipicial-rust-sdk/tree/master/website/',
+        showLastUpdateAuthor: true,
+        showLastUpdateTime: true,
+      },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'cli',
+        path: 'cli',
+        routeBasePath: 'cli',
+        sidebarPath: require.resolve('./sidebars-cli.js'),
+        editUrl: 'https://github.com/r3e-network/atipicial-rust-sdk/tree/master/website/',
+        showLastUpdateAuthor: true,
+        showLastUpdateTime: true,
+      },
+    ],
+  ],
+
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.googleapis.com',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preconnect',
+        href: 'https://fonts.gstatic.com',
+        crossorigin: 'anonymous',
+      },
+    },
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap',
+      },
+    },
+  ],
+};
+
+module.exports = config; 

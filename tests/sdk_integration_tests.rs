@@ -1,0 +1,314 @@
+//! Integration tests for the high-level SDK API
+//!
+//! These tests verify that the simplified API works correctly
+//! with both TestNet and mock environments.
+
+#[cfg(test)]
+mod sdk_tests {
+	#[cfg(feature = "mock")]
+	use std::env;
+	use std::time::Duration;
+
+	use atipicial::atipicial_error::unified::{ErrorRecovery, AtipicialError};
+	use atipicial::sdk::{Balance, DecimalAmount, Atipicial, Network, Token};
+
+	#[tokio::test]
+	async fn test_builder_pattern() {
+		// Test that builder pattern correctly configures the SDK
+		let _builder = Atipicial::builder()
+			.network(Network::TestNet)
+			.timeout(Duration::from_secs(60))
+			.retries(5)
+			.cache(true)
+			.metrics(false);
+
+		// If this compiles, the builder pattern works correctly
+		// The actual config fields are private implementation details
+		let _ = _builder;
+	}
+
+	#[tokio::test]
+	async fn test_network_enum() {
+		// Test network variants
+		assert!(matches!(Network::MainNet, Network::MainNet));
+		assert!(matches!(Network::TestNet, Network::TestNet));
+
+		let custom_url = "https://custom.atipicial.com";
+		match Network::Custom(custom_url.to_string()) {
+			Network::Custom(url) => assert_eq!(url, custom_url),
+			_ => panic!("Expected Custom network"),
+		}
+	}
+
+	#[tokio::test]
+	async fn test_balance_structure() {
+		use atipicial::atipicial_types::ScriptHash;
+		use std::str::FromStr;
+
+		// Test Balance struct creation
+		let balance = Balance {
+			atipicial: 100,
+			gas: DecimalAmount::parse("50.5", 8).expect("valid decimal amount"),
+			tokens: vec![atipicial::sdk::TokenBalance {
+				contract: ScriptHash::from_str("0x0000000000000000000000000000000000000000")
+					.unwrap(),
+				symbol: "TEST".to_string(),
+				amount: DecimalAmount::parse("1000", 8).expect("valid decimal amount"),
+			}],
+		};
+
+		assert_eq!(balance.atipicial, 100);
+		assert_eq!(balance.gas.to_string(), "50.50000000");
+		assert_eq!(balance.tokens.len(), 1);
+		assert_eq!(balance.tokens[0].symbol, "TEST");
+	}
+
+	#[tokio::test]
+	async fn test_token_enum() {
+		// Test Token enum variants
+		assert!(matches!(Token::ATC, Token::ATC));
+		assert!(matches!(Token::GAS, Token::GAS));
+
+		use atipicial::atipicial_types::ScriptHash;
+		use std::str::FromStr;
+
+		let custom_hash =
+			ScriptHash::from_str("0x0000000000000000000000000000000000000000").unwrap();
+		match Token::Custom(custom_hash) {
+			Token::Custom(hash) => assert_eq!(hash, custom_hash),
+			_ => panic!("Expected Custom token"),
+		}
+	}
+
+	#[tokio::test]
+	#[cfg(feature = "mock")]
+	async fn test_testnet_connection() {
+		if std::env::var("ATCRUST_SKIP_NETWORK_TESTS").is_ok() {
+			eprintln!("Skipping network test 'test_testnet_connection'");
+			return;
+		}
+
+		let builder = if let Ok(url) =
+			env::var("ATC_TESTNET_RPC_URL").or_else(|_| env::var("ATC_TESTNET_URL"))
+		{
+			Atipicial::builder().network(Network::Custom(url))
+		} else {
+			Atipicial::builder().network(Network::TestNet)
+		};
+		let result = builder.build().await;
+
+		match result {
+			Ok(atipicial) => {
+				// If connection succeeds, test basic operations
+				let height_result = atipicial.get_block_height().await;
+				assert!(height_result.is_ok(), "Should get block height");
+
+				let height = height_result.unwrap();
+				assert!(height > 0, "Block height should be positive");
+			},
+			Err(e) => {
+				// If network is unavailable, ensure error has recovery suggestions
+				match e {
+					AtipicialError::Network { recovery, .. } => {
+						assert!(
+							!recovery.suggestions.is_empty(),
+							"Network error should have recovery suggestions"
+						);
+						assert!(recovery.retryable, "Network error should be retryable");
+					},
+					_ => panic!("Expected Network error type"),
+				}
+			},
+		}
+	}
+
+	#[tokio::test]
+	#[cfg(feature = "mock")]
+	async fn test_mainnet_connection() {
+		if std::env::var("ATCRUST_SKIP_NETWORK_TESTS").is_ok() {
+			eprintln!("Skipping network test 'test_mainnet_connection'");
+			return;
+		}
+
+		let builder = if let Ok(url) =
+			env::var("ATC_MAINNET_RPC_URL").or_else(|_| env::var("ATC_MAINNET_URL"))
+		{
+			Atipicial::builder().network(Network::Custom(url))
+		} else {
+			Atipicial::builder().network(Network::MainNet)
+		};
+		let result = builder.build().await;
+
+		match result {
+			Ok(atipicial) => {
+				// If connection succeeds, ensure client is usable
+				let _height = atipicial.get_block_height().await.unwrap_or_default();
+			},
+			Err(_) => {
+				// Network might be unavailable in test environment
+				// This is acceptable for integration tests
+			},
+		}
+	}
+
+	#[tokio::test]
+	async fn test_error_recovery_builder() {
+		// Test ErrorRecovery builder pattern
+		let recovery = ErrorRecovery::new()
+			.suggest("Try again")
+			.suggest("Check network")
+			.retryable(true)
+			.retry_after(Duration::from_secs(5))
+			.doc("https://docs.atipicial.com");
+
+		assert_eq!(recovery.suggestions.len(), 2);
+		assert!(recovery.retryable);
+		assert_eq!(recovery.retry_after, Some(Duration::from_secs(5)));
+		assert_eq!(recovery.docs.len(), 1);
+	}
+
+	#[tokio::test]
+	async fn test_error_display_formatting() {
+		// Test that errors display correctly with recovery info
+		let error = AtipicialError::Network {
+			message: "Connection failed".to_string(),
+			source: None,
+			recovery: ErrorRecovery::new()
+				.suggest("Check your internet connection")
+				.suggest("Try a different RPC endpoint")
+				.retryable(true)
+				.retry_after(Duration::from_secs(5)),
+		};
+
+		let error_string = format!("{}", error);
+		assert!(error_string.contains("Network error"));
+		assert!(error_string.contains("Connection failed"));
+	}
+
+	#[tokio::test]
+	async fn test_transfer_builder() {
+		use atipicial::atipicial_wallets::wallet::Wallet;
+		use atipicial::sdk::Transfer;
+
+		// Create a test wallet (won't actually use it)
+		let wallet = Wallet::new();
+
+		// Test that Transfer can be created and built with memo
+		// The actual fields are private implementation details
+		let _transfer =
+			Transfer::new(wallet, "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc", 100, Token::GAS)
+				.with_memo("Test transfer");
+
+		// If this compiles, the builder pattern works correctly
+		let _ = _transfer;
+	}
+}
+
+#[cfg(test)]
+mod error_handling_tests {
+	use atipicial::atipicial_error::unified::*;
+
+	#[test]
+	fn test_error_builder_network() {
+		let error = ErrorBuilder::network("Connection failed")
+			.suggest("Check network")
+			.retryable()
+			.build();
+
+		match error {
+			AtipicialError::Network { message, recovery, .. } => {
+				assert_eq!(message, "Connection failed");
+				assert!(recovery.retryable);
+				assert_eq!(recovery.suggestions.len(), 1);
+			},
+			_ => panic!("Expected Network error"),
+		}
+	}
+
+	#[test]
+	fn test_error_builder_wallet() {
+		let error = ErrorBuilder::wallet("Invalid password")
+			.suggest("Check your password")
+			.suggest("Try password recovery")
+			.build();
+
+		match error {
+			AtipicialError::Wallet { message, recovery, .. } => {
+				assert_eq!(message, "Invalid password");
+				assert_eq!(recovery.suggestions.len(), 2);
+			},
+			_ => panic!("Expected Wallet error"),
+		}
+	}
+
+	#[test]
+	fn test_error_builder_contract() {
+		let error = ErrorBuilder::contract("Method not found")
+			.with_contract("0xabcd")
+			.with_method("transfer")
+			.suggest("Check contract ABI")
+			.build();
+
+		match error {
+			AtipicialError::Contract { message, contract, method, recovery, .. } => {
+				assert_eq!(message, "Method not found");
+				assert_eq!(contract, Some("0xabcd".to_string()));
+				assert_eq!(method, Some("transfer".to_string()));
+				assert_eq!(recovery.suggestions.len(), 1);
+			},
+			_ => panic!("Expected Contract error"),
+		}
+	}
+
+	#[test]
+	fn test_insufficient_funds_error() {
+		let error = AtipicialError::InsufficientFunds {
+			required: "100 GAS".to_string(),
+			available: "50 GAS".to_string(),
+			token: "GAS".to_string(),
+			recovery: ErrorRecovery::new()
+				.suggest("Acquire more GAS tokens")
+				.suggest("Reduce the transaction amount"),
+		};
+
+		let error_string = format!("{}", error);
+		assert!(error_string.contains("Insufficient funds"));
+		assert!(error_string.contains("need 100 GAS"));
+		assert!(error_string.contains("have 50 GAS"));
+	}
+
+	#[test]
+	fn test_timeout_error() {
+		use std::time::Duration;
+
+		let error = AtipicialError::Timeout {
+			duration: Duration::from_secs(30),
+			operation: "RPC call".to_string(),
+			recovery: ErrorRecovery::new().suggest("Increase timeout duration").retryable(true),
+		};
+
+		let error_string = format!("{}", error);
+		assert!(error_string.contains("timed out"));
+		assert!(error_string.contains("30s"));
+	}
+
+	#[test]
+	fn test_rate_limit_error() {
+		use std::time::Duration;
+
+		let error = AtipicialError::RateLimit {
+			message: "Too many requests".to_string(),
+			retry_after: Some(Duration::from_secs(60)),
+			recovery: ErrorRecovery::new()
+				.suggest("Wait before retrying")
+				.retry_after(Duration::from_secs(60)),
+		};
+
+		match error {
+			AtipicialError::RateLimit { retry_after, .. } => {
+				assert_eq!(retry_after, Some(Duration::from_secs(60)));
+			},
+			_ => panic!("Expected RateLimit error"),
+		}
+	}
+}

@@ -1,0 +1,69 @@
+//! # Atipicial RPC Client Module
+//!
+//! The RPC module provides client implementations for interacting with Atipicial nodes
+//! through JSON-RPC API calls.
+//!
+//! ## Overview
+//!
+//! This module implements RPC client functionality for communicating with Atipicial blockchain nodes, including:
+//!
+//! - **Transport Protocols**: HTTP and WebSocket transport implementations
+//! - **Connection Management**: Connection pooling and request batching
+//! - **Pub/Sub Support**: Real-time notifications for blockchain events
+//! - **Client Interfaces**: Type-safe wrappers for Atipicial's JSON-RPC methods
+//!
+//! ## Example
+//!
+//! ```no_run
+//! use atipicial::atipicial_clients::{HttpProvider, RpcClient, APITrait};
+//! // use atipicial::atipicial_types::Address;
+//! // use atipicial::atipicial_protocol::{ApplicationLog, Aep17Balances};
+//! // use primitive_types::{H160, H256};
+//! // use std::str::FromStr;
+//!
+//! async fn rpc_examples() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create an HTTP client connected to a Atipicial TestNet node
+//!     let provider = HttpProvider::new("https://testnet1.atipicial.com:443")?;
+//!     let client = RpcClient::new(provider);
+//!     
+//!     // Get basic blockchain information
+//!     let block_count = client.get_block_count().await?;
+//!     println!("Current block height: {}", block_count);
+//!     
+//!     let best_block_hash = client.get_best_block_hash().await?;
+//!     println!("Best block hash: {}", best_block_hash);
+//!     
+//!     // Get detailed block information
+//!     // let block = client.get_block(best_block_hash, true).await?;
+//!     // println!("Block time: {}, tx count: {}", block.time, block.tx.len());
+//!     
+//!     // Query account information
+//!     // let address = Address::from_str("NUVPACTpQvd2HHmBgFjJJRWwVXJiR3uAEh")?;
+//!     // let script_hash = address.to_script_hash();
+//!     
+//!     // Get AEP-17 token balances
+//!     // let balances = client.get_aep17_balances(script_hash).await?;
+//!     // for balance in balances.balances {
+//!     //     println!("Token: {}, Amount: {}", balance.asset_hash, balance.amount);
+//!     // }
+//!     
+//!     // Get application logs for a transaction
+//!     // if let Some(tx) = block.tx.as_ref().and_then(|txs| txs.first()) {
+//!     //     let app_log = client.get_application_log(tx.hash).await?;
+//!     //     println!("Transaction triggers: {} executions", app_log.executions.len());
+//!     // }
+//!     
+//!     Ok(())
+//! }
+//! ```
+
+pub use connections::*;
+pub use pubsub::{PubsubClient, SubscriptionStream};
+pub use rpc_client::*;
+pub use transports::*;
+
+mod rpc_client;
+
+mod connections;
+mod pubsub;
+mod transports;

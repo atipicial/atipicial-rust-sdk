@@ -1,0 +1,45 @@
+---
+title: Getting Started with Atipicial Rust SDK
+description: Learn how to install and use the Atipicial Rust SDK for blockchain development
+slug: /getting-started
+---
+
+# Getting Started with Atipicial Rust SDK
+
+The Atipicial Rust SDK provides a comprehensive set of tools for building applications on the Atipicial blockchain ecosystem.
+
+## Installation
+
+Add the Atipicial Rust SDK to your Cargo.toml file:
+
+```toml
+[dependencies]
+atipicial = "2.1.0"
+```
+
+## Basic Usage
+
+Here's a simple example of using the Atipicial Rust SDK to create a wallet:
+
+```rust
+use atipicial::prelude::*;
+
+fn main() -> Result<()> {
+    // Create a new wallet
+    let wallet = Wallet::new();
+    
+    // Print the wallet address
+    println!("New wallet address: {}", wallet.address());
+    
+    Ok(())
+}
+```
+
+## Next Steps
+
+Explore the documentation to learn more about:
+
+- [Wallet Management](/docs/wallets)
+- [Smart Contracts](/docs/smart-contracts)
+- [Transactions](/docs/transactions)
+- [Network Communication](/docs/network)

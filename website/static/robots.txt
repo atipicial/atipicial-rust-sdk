@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://atipicial-rust-sdk.netlify.app/sitemap.xml

@@ -1,0 +1,777 @@
+/**
+ * CSS files with the .module.css suffix will be treated as CSS modules
+ * and scoped locally.
+ */
+
+/**
+ * AtipicialRust Homepage Styles v1.0.1
+ * Modern, beautiful styling for the homepage components
+ */
+
+/* Hero Section */
+.heroBanner {
+  padding: 4rem 0;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  position: relative;
+  overflow: hidden;
+  min-height: 90vh;
+  display: flex;
+  align-items: center;
+}
+
+.heroBanner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.heroContent {
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+.heroLogo {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.logoCircle {
+  width: 96px;
+  height: 96px;
+  background: linear-gradient(135deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--atipicial-shadow-xl);
+  animation: pulse-slow 3s infinite;
+}
+
+.logoIcon {
+  font-size: 3rem;
+  color: white;
+}
+
+.heroTitle {
+  font-size: 4rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  line-height: 1.1;
+}
+
+.heroTitlePrimary {
+  color: white;
+}
+
+.heroTitleSecondary {
+  background: linear-gradient(135deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.heroSubtitle {
+  font-size: 1.5rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 3rem;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.heroButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.heroButton {
+  min-width: 200px;
+  font-size: 1.125rem;
+  padding: 0.875rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.buttonIcon {
+  transition: var(--atipicial-transition);
+}
+
+.heroButton:hover .buttonIcon {
+  transform: translateX(4px);
+}
+
+.githubIcon {
+  font-size: 1.25rem;
+}
+
+.qualityBadges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 0.75rem 1rem;
+  border-radius: var(--ifm-border-radius);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  transition: var(--atipicial-transition);
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: var(--atipicial-shadow-md);
+}
+
+.badgeIcon {
+  font-size: 1.25rem;
+}
+
+.badgeText {
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.heroStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+/* Stats Components */
+.stat {
+  padding: 1rem;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.statValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+  margin-bottom: 0.25rem;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.statDescription {
+  font-size: 0.75rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+/* Blockchain Section */
+.blockchainSection {
+  padding: 3rem 0;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.blockchainCard {
+  background: var(--ifm-background-surface-color);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--ifm-border-radius-lg);
+  padding: 2rem;
+  box-shadow: var(--atipicial-shadow-lg);
+  backdrop-filter: blur(10px);
+}
+
+.blockchainHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.blockchainInfo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.blockchainIcon {
+  width: 3rem;
+  height: 3rem;
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: var(--ifm-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.blockchainInfo h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: white;
+}
+
+.blockchainInfo p {
+  margin: 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.875rem;
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+}
+
+.refreshIcon {
+  font-size: 1rem;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--ifm-color-primary);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  color: var(--ifm-color-content-secondary);
+}
+
+.blockchainStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.blockchainStat {
+  background: rgba(15, 23, 42, 0.5);
+  padding: 1rem;
+  border-radius: var(--ifm-border-radius);
+  border: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.blockchainStat .statLabel {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.blockchainStat .statValue {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.blockHash {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.blockHash span {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1rem;
+}
+
+.externalLink {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  transition: var(--atipicial-transition);
+}
+
+.externalLink:hover {
+  color: var(--ifm-color-primary-light);
+}
+
+.lastUpdated {
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--ifm-color-content-secondary);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+/* Features Section */
+.featuresSection {
+  padding: 5rem 0;
+  background: var(--ifm-background-color);
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.sectionSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+  max-width: 48rem;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.feature {
+  text-align: center;
+  padding: 2rem;
+}
+
+.featureIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.featureTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-content);
+  transition: var(--atipicial-transition);
+}
+
+.feature:hover .featureTitle {
+  color: var(--ifm-color-primary);
+}
+
+.featureDescription {
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.6;
+}
+
+/* Code Section */
+.codeSection {
+  padding: 5rem 0;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.codeContent {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.codeInfo {
+  text-align: center;
+}
+
+.codeInfo .sectionTitle {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.codeInfo .sectionSubtitle {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.codeFeatures {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  max-width: 32rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.codeFeature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ifm-color-content-secondary);
+  font-size: 1rem;
+}
+
+.checkIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.codeButton {
+  margin-top: 1rem;
+}
+
+.codeExample {
+  position: relative;
+}
+
+.codeExample::before {
+  content: '';
+  position: absolute;
+  top: -1rem;
+  left: -1rem;
+  right: -1rem;
+  bottom: -1rem;
+  background: linear-gradient(135deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  border-radius: var(--ifm-border-radius-lg);
+  opacity: 0.1;
+  z-index: -1;
+}
+
+/* Tools Section */
+.toolsSection {
+  padding: 5rem 0;
+  background: var(--ifm-background-color);
+}
+
+.toolsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+.tool {
+  text-align: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.tool::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ifm-color-primary), var(--ifm-color-secondary));
+  opacity: 0;
+  transition: var(--atipicial-transition);
+}
+
+.tool:hover::before {
+  opacity: 1;
+}
+
+.toolIcon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  display: block;
+}
+
+.toolTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: var(--ifm-color-content);
+}
+
+.toolDescription {
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.toolButton {
+  margin-top: auto;
+}
+
+/* CTA Section */
+.ctaSection {
+  padding: 5rem 0;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaSection::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.ctaContent {
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+.ctaTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.ctaSubtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-color-content-secondary);
+  margin-bottom: 3rem;
+  max-width: 48rem;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
+}
+
+.ctaButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 3rem;
+}
+
+.ctaButton {
+  min-width: 200px;
+  font-size: 1.125rem;
+  padding: 0.875rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.ctaNote {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--ifm-border-radius);
+  padding: 1.5rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  backdrop-filter: blur(10px);
+}
+
+.ctaNote p {
+  margin: 0;
+  color: var(--ifm-color-content-secondary);
+  line-height: 1.6;
+}
+
+.ctaNote strong {
+  color: var(--ifm-color-primary);
+}
+
+.ctaLink {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: var(--atipicial-transition);
+}
+
+.ctaLink:hover {
+  color: var(--ifm-color-primary-light);
+  text-decoration: underline;
+}
+
+/* Animations */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .heroButtons {
+    flex-direction: row;
+  }
+  
+  .heroStats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .ctaButtons {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 768px) {
+  .heroTitle {
+    font-size: 5rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1.75rem;
+  }
+  
+  .codeContent {
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+  }
+  
+  .codeInfo {
+    text-align: left;
+  }
+  
+  .codeInfo .sectionTitle {
+    text-align: left;
+  }
+  
+  .codeInfo .sectionSubtitle {
+    text-align: left;
+  }
+  
+  .codeFeatures {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .heroTitle {
+    font-size: 6rem;
+  }
+  
+  .featuresGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .toolsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .heroBanner {
+    padding: 2rem 0;
+    min-height: 70vh;
+  }
+  
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1.125rem;
+  }
+  
+  .logoCircle {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .logoIcon {
+    font-size: 2rem;
+  }
+  
+  .sectionTitle {
+    font-size: 2rem;
+  }
+  
+  .ctaTitle {
+    font-size: 2rem;
+  }
+  
+  .blockchainHeader {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .blockchainStats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.heroBanner {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.statCard {
+  animation: fadeInUp 0.8s ease-out;
+  animation-delay: 0.2s;
+  animation-fill-mode: both;
+}
+
+.showcaseCard {
+  animation: fadeInUp 0.8s ease-out;
+  animation-delay: 0.4s;
+  animation-fill-mode: both;
+}
+
+/* Custom scrollbar */
+.codeBlock::-webkit-scrollbar {
+  height: 8px;
+}
+
+.codeBlock::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.codeBlock::-webkit-scrollbar-thumb {
+  background: #22c55e;
+  border-radius: 4px;
+}
+
+.codeBlock::-webkit-scrollbar-thumb:hover {
+  background: #16a34a;
+} 

@@ -1,0 +1,27 @@
+[features]
+default = []
+futures = ["atipicial/futures"]
+ledger = ["atipicial/ledger"]
+[package]
+name = "wallets"
+version = "0.1.0"
+publish = false
+edition = "2021"
+authors = ["R3E Network <jimmy@r3e.network>"]
+
+[dev-dependencies]
+atipicial = { path = "../../", package = "atipicial", features = [] }
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1.0.130", features = ["derive"] }
+eyre = "0.6.5"
+[dependencies]
+tokio = { version = "1.50.0", features = ["rt", "rt-multi-thread", "macros"] }
+hex = "0.4"
+
+[[example]]
+name = "local_signer"
+path = "examples/local_signer.rs"
+
+[[example]]
+name = "sign_message"
+path = "examples/sign_message.rs"

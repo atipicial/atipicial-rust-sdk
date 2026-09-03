@@ -1,0 +1,269 @@
+# Basic Atipicial dApp Template
+# This template provides a starting point for Atipicial blockchain applications
+
+[template]
+name = "basic-dapp"
+description = "Basic Atipicial dApp with wallet and smart contract interaction"
+version = "1.0.6"
+author = "AtipicialRust Team"
+
+[files]
+# Main application file
+"src/main.rs" = '''
+//! Basic Atipicial dApp using AtipicialRust SDK v{{atipicial_version}}
+//! 
+//! This template demonstrates:
+//! - Connection to Atipicial network
+//! - Wallet management
+//! - Smart contract interaction
+//! - Token transfers
+
+use atipicial::sdk::Atipicial;
+use atipicial::atipicial_wallets::wallet::Wallet;
+use std::error::Error;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    println!("🚀 Welcome to your Atipicial dApp!");
+    
+    // Connect to Atipicial TestNet
+    println!("📡 Connecting to Atipicial TestNet...");
+    let atipicial = Atipicial::testnet().await?;
+    println!("✅ Connected successfully!");
+    
+    // Get current block height
+    let height = atipicial.get_block_height().await?;
+    println!("📊 Current block height: {}", height);
+    
+    // Create or load wallet
+    let _wallet = create_or_load_wallet()?;
+    println!("💼 Wallet ready!");
+    
+    // Example: Check balance
+    let address = "NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc"; // Example address
+    let balance = atipicial.get_balance(address).await?;
+    println!("💰 Balance for {}:", address);
+    println!("   ATC: {}", balance.atipicial);
+    println!("   GAS: {}", balance.gas);
+    
+    Ok(())
+}
+
+fn create_or_load_wallet() -> Result<Wallet, Box<dyn Error>> {
+    // Check if wallet exists
+    let wallet_path = "wallet.json";
+    
+    if std::path::Path::new(wallet_path).exists() {
+        println!("📂 Loading existing wallet...");
+        // In production, implement actual wallet loading
+        Ok(Wallet::new())
+    } else {
+        println!("🔑 Creating new wallet...");
+        let wallet = Wallet::new();
+        // In production, save the wallet securely
+        Ok(wallet)
+    }
+}
+'''
+
+"src/config.rs" = '''
+//! Configuration module for the dApp
+
+use serde::{Deserialize, Serialize};
+use std::fs;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Config {
+    pub network: NetworkConfig,
+    pub wallet: WalletConfig,
+    pub contracts: ContractConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NetworkConfig {
+    pub rpc_url: String,
+    pub network_type: String, // mainnet, testnet, or custom
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WalletConfig {
+    pub path: String,
+    pub encrypted: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ContractConfig {
+    pub atipicial_token: String,
+    pub gas_token: String,
+    pub custom_contracts: Vec<CustomContract>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomContract {
+    pub name: String,
+    pub hash: String,
+    pub abi_path: Option<String>,
+}
+
+impl Config {
+    pub fn load(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let contents = fs::read_to_string(path)?;
+        let config: Config = toml::from_str(&contents)?;
+        Ok(config)
+    }
+    
+    pub fn save(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let contents = toml::to_string_pretty(self)?;
+        fs::write(path, contents)?;
+        Ok(())
+    }
+    
+    pub fn default() -> Self {
+        Config {
+            network: NetworkConfig {
+                rpc_url: "https://testnet1.atipicial.com:443".to_string(),
+                network_type: "testnet".to_string(),
+            },
+            wallet: WalletConfig {
+                path: "wallet.json".to_string(),
+                encrypted: true,
+            },
+            contracts: ContractConfig {
+                atipicial_token: "ef4073a0f2b305a38ec4050e4d3d28bc40ea63f5".to_string(),
+                gas_token: "d2a4cff31913016155e38e474a2c06d08be276cf".to_string(),
+                custom_contracts: vec![],
+            },
+        }
+    }
+}
+'''
+
+"Cargo.toml" = '''
+[package]
+name = "{{project_name}}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atipicial = "{{atipicial_version}}"
+tokio = { version = "1.45", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+anyhow = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+env_logger = "0.11"
+log = "0.4"
+
+[dev-dependencies]
+mockall = "0.13"
+tempfile = "3.0"
+'''
+
+"config.toml" = '''
+# dApp Configuration
+
+[network]
+rpc_url = "https://testnet1.atipicial.com:443"
+network_type = "testnet"
+
+[wallet]
+path = "wallet.json"
+encrypted = true
+
+[contracts]
+atipicial_token = "ef4073a0f2b305a38ec4050e4d3d28bc40ea63f5"
+gas_token = "d2a4cff31913016155e38e474a2c06d08be276cf"
+
+# Add your custom contracts here
+# [[contracts.custom_contracts]]
+# name = "MyContract"
+# hash = "0x..."
+# abi_path = "contracts/my_contract.json"
+'''
+
+".gitignore" = '''
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Atipicial Wallet files
+*.wallet
+*.json
+!config.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+'''
+
+"README.md" = '''
+# {{project_name}}
+
+A Atipicial dApp built with AtipicialRust SDK v{{atipicial_version}}
+
+## Features
+
+- ✅ Atipicial blockchain connection
+- ✅ Wallet management
+- ✅ Smart contract interaction
+- ✅ Token balance checking
+- ✅ Configuration management
+
+## Quick Start
+
+1. Install Rust (if not already installed):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+2. Build the project:
+   ```bash
+   cargo build
+   ```
+
+3. Run the application:
+   ```bash
+   cargo run
+   ```
+
+## Configuration
+
+Edit `config.toml` to customize:
+- Network settings (MainNet/TestNet/Custom)
+- Wallet configuration
+- Smart contract addresses
+
+## Development
+
+### Running Tests
+```bash
+cargo test
+```
+
+### Building for Production
+```bash
+cargo build --release
+```
+
+## Resources
+
+- [AtipicialRust Documentation](https://docs.rs/atipicial)
+- [Atipicial Developer Portal](https://developers.atipicial.com)
+- [Atipicial Documentation](https://docs.atipicial.com)
+
+## License
+
+MIT
+'''

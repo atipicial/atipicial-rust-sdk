@@ -44,7 +44,7 @@ anyhow = "1.0"
 thiserror = "2.0.17"
 primitive-types = "0.14"
 num-traits = "0.2"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13", features = ["json"] }
 sha2 = "0.11"
 ripemd = "0.2"
 env_logger = "0.11.10"
